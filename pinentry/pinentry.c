@@ -1,20 +1,20 @@
 /* pinentry.c - The PIN entry support library
-   Copyright (C) 2002, 2003, 2007, 2008, 2010 g10 Code GmbH
-   
+   Copyright (C) 2002, 2003, 2007, 2008, 2010, 2015, 2016 g10 Code GmbH
+
    This file is part of PINENTRY.
-   
+
    PINENTRY is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
- 
+
    PINENTRY is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    General Public License for more details.
- 
+
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  
+   along with this program; if not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -26,8 +26,8 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 #include <unistd.h>
+#include <assert.h>
 #ifndef HAVE_W32CE_SYSTEM
 # include <locale.h>
 #endif
@@ -43,65 +43,172 @@
 #include <iconv.h>
 #endif
 
-#include "assuan.h"
+#include <assuan.h>
+
 #include "memory.h"
 #include "secmem-util.h"
+#include "argparse.h"
 #include "pinentry.h"
+#include "password-cache.h"
+
+#ifdef INSIDE_EMACS
+# include "pinentry-emacs.h"
+#endif
+#ifdef FALLBACK_CURSES
+# include "pinentry-curses.h"
+#endif
 
 #ifdef HAVE_W32CE_SYSTEM
 #define getpid() GetCurrentProcessId ()
 #endif
 
 /* Keep the name of our program here. */
-static char this_pgmname[50]; 
+static char this_pgmname[50];
+
+struct pinentry pinentry;
+
+static void
+pinentry_reset (int use_defaults)
+{
+  /* GPG Agent sets these options once when it starts the pinentry.
+     Don't reset them.  */
+  int grab = pinentry.grab;
+  char *ttyname = pinentry.ttyname;
+  char *ttytype = pinentry.ttytype;
+  char *lc_ctype = pinentry.lc_ctype;
+  char *lc_messages = pinentry.lc_messages;
+  int allow_external_password_cache = pinentry.allow_external_password_cache;
+  char *default_ok = pinentry.default_ok;
+  char *default_cancel = pinentry.default_cancel;
+  char *default_prompt = pinentry.default_prompt;
+  char *default_pwmngr = pinentry.default_pwmngr;
+  char *default_cf_visi = pinentry.default_cf_visi;
+  char *default_tt_visi = pinentry.default_tt_visi;
+  char *default_tt_hide = pinentry.default_tt_hide;
+  char *touch_file = pinentry.touch_file;
+
+  /* These options are set from the command line.  Don't reset
+     them.  */
+  int debug = pinentry.debug;
+  char *display = pinentry.display;
+  int parent_wid = pinentry.parent_wid;
+
+  pinentry_color_t color_fg = pinentry.color_fg;
+  int color_fg_bright = pinentry.color_fg_bright;
+  pinentry_color_t color_bg = pinentry.color_bg;
+  pinentry_color_t color_so = pinentry.color_so;
+  int color_so_bright = pinentry.color_so_bright;
+
+  int timeout = pinentry.timeout;
+
+  char *invisible_char = pinentry.invisible_char;
 
 
-struct pinentry pinentry =
-  {
-    NULL,	/* Title.  */
-    NULL,	/* Description.  */
-    NULL,	/* Error.  */
-    NULL,	/* Prompt.  */
-    NULL,	/* Ok button.  */
-    NULL,	/* Not-Ok button.  */
-    NULL,	/* Cancel button.  */
-    NULL,	/* PIN.  */
-    2048,	/* PIN length.  */
-    0,		/* Display.  */
-    0,		/* TTY name.  */
-    0,		/* TTY type.  */
-    0,		/* TTY LC_CTYPE.  */
-    0,		/* TTY LC_MESSAGES.  */
-    0,		/* Debug mode.  */
-    60,		/* Pinentry timeout in seconds.  */
-#ifdef ENABLE_ENHANCED
-    0,		/* Enhanced mode.  */
-#endif
-    1,		/* Global grab.  */
-    0,		/* Parent Window ID.  */
-    NULL,       /* Touch file.  */
-    0,		/* Result.  */
-    0,		/* Canceled.  */
-    0,		/* Close button flag.  */
-    0,          /* Locale error flag. */
-    0,          /* One-button flag.  */
-    NULL,       /* Quality-Bar flag and description.  */
-    NULL,       /* Quality-Bar tooltip.  */
-    PINENTRY_COLOR_DEFAULT,
-    0,
-    PINENTRY_COLOR_DEFAULT,
-    PINENTRY_COLOR_DEFAULT,
-    0,
-    NULL,        /* default_ok  */
-    NULL,        /* default_cancel  */
-    NULL,        /* default_prompt  */
-    NULL         /* Assuan context.  */
-  };
+  /* Free any allocated memory.  */
+  if (use_defaults)
+    {
+      free (pinentry.ttyname);
+      free (pinentry.ttytype);
+      free (pinentry.lc_ctype);
+      free (pinentry.lc_messages);
+      free (pinentry.default_ok);
+      free (pinentry.default_cancel);
+      free (pinentry.default_prompt);
+      free (pinentry.default_pwmngr);
+      free (pinentry.default_cf_visi);
+      free (pinentry.default_tt_visi);
+      free (pinentry.default_tt_hide);
+      free (pinentry.touch_file);
+      free (pinentry.display);
+    }
+
+  free (pinentry.title);
+  free (pinentry.description);
+  free (pinentry.error);
+  free (pinentry.prompt);
+  free (pinentry.ok);
+  free (pinentry.notok);
+  free (pinentry.cancel);
+  secmem_free (pinentry.pin);
+  free (pinentry.repeat_passphrase);
+  free (pinentry.repeat_error_string);
+  free (pinentry.quality_bar);
+  free (pinentry.quality_bar_tt);
+  free (pinentry.keyinfo);
+  free (pinentry.specific_err_info);
+
+  /* Reset the pinentry structure.  */
+  memset (&pinentry, 0, sizeof (pinentry));
+
+  /* Restore options without a default we want to preserve.  */
+  pinentry.invisible_char = invisible_char;
+
+  /* Restore other options or set defaults.  */
+
+  if (use_defaults)
+    {
+      /* Pinentry timeout in seconds.  */
+      pinentry.timeout = 60;
+
+      /* Global grab.  */
+      pinentry.grab = 1;
+
+      pinentry.color_fg = PINENTRY_COLOR_DEFAULT;
+      pinentry.color_fg_bright = 0;
+      pinentry.color_bg = PINENTRY_COLOR_DEFAULT;
+      pinentry.color_so = PINENTRY_COLOR_DEFAULT;
+      pinentry.color_so_bright = 0;
+    }
+  else
+    /* Restore the options.  */
+    {
+      pinentry.grab = grab;
+      pinentry.ttyname = ttyname;
+      pinentry.ttytype = ttytype;
+      pinentry.lc_ctype = lc_ctype;
+      pinentry.lc_messages = lc_messages;
+      pinentry.allow_external_password_cache = allow_external_password_cache;
+      pinentry.default_ok = default_ok;
+      pinentry.default_cancel = default_cancel;
+      pinentry.default_prompt = default_prompt;
+      pinentry.default_pwmngr = default_pwmngr;
+      pinentry.default_cf_visi = default_cf_visi;
+      pinentry.default_tt_visi = default_tt_visi;
+      pinentry.default_tt_hide = default_tt_hide;
+      pinentry.touch_file = touch_file;
+
+      pinentry.debug = debug;
+      pinentry.display = display;
+      pinentry.parent_wid = parent_wid;
+
+      pinentry.color_fg = color_fg;
+      pinentry.color_fg_bright = color_fg_bright;
+      pinentry.color_bg = color_bg;
+      pinentry.color_so = color_so;
+      pinentry.color_so_bright = color_so_bright;
+
+      pinentry.timeout = timeout;
+    }
+}
+
+static gpg_error_t
+pinentry_assuan_reset_handler (assuan_context_t ctx, char *line)
+{
+  (void)ctx;
+  (void)line;
+
+  pinentry_reset (0);
+
+  return 0;
+}
+
 
 
+static int lc_ctype_unknown_warning = 0;
+
 #if defined FALLBACK_CURSES || defined PINENTRY_CURSES || defined PINENTRY_GTK
 char *
-pinentry_utf8_to_local (char *lc_ctype, char *text)
+pinentry_utf8_to_local (const char *lc_ctype, const char *text)
 {
   iconv_t cd;
   const char *input = text;
@@ -117,8 +224,12 @@ pinentry_utf8_to_local (char *lc_ctype, char *text)
      string.  */
   if (!lc_ctype)
     {
-      fprintf (stderr, "%s: no LC_CTYPE known - assuming UTF-8\n",
-               this_pgmname);
+      if (! lc_ctype_unknown_warning)
+	{
+	  fprintf (stderr, "%s: no LC_CTYPE known - assuming UTF-8\n",
+		   this_pgmname);
+	  lc_ctype_unknown_warning = 1;
+	}
       return strdup (text);
     }
 
@@ -146,7 +257,8 @@ pinentry_utf8_to_local (char *lc_ctype, char *text)
       free (output_buf);
       return NULL;
     }
-  processed = iconv (cd, &input, &input_len, &output, &output_len);
+  processed = iconv (cd, (ICONV_CONST char **)&input, &input_len,
+                     &output, &output_len);
   iconv_close (cd);
   if (processed == (size_t) -1 || input_len)
     {
@@ -178,8 +290,12 @@ pinentry_local_to_utf8 (char *lc_ctype, char *text, int secure)
      string.  */
   if (!lc_ctype)
     {
-      fprintf (stderr, "%s: no LC_CTYPE known - assuming UTF-8\n",
-               this_pgmname);
+      if (! lc_ctype_unknown_warning)
+	{
+	  fprintf (stderr, "%s: no LC_CTYPE known - assuming UTF-8\n",
+		   this_pgmname);
+	  lc_ctype_unknown_warning = 1;
+	}
       output_buf = secure? secmem_malloc (input_len) : malloc (input_len);
       if (output_buf)
         strcpy (output_buf, input);
@@ -212,7 +328,8 @@ pinentry_local_to_utf8 (char *lc_ctype, char *text, int secure)
         free (output_buf);
       return NULL;
     }
-  processed = iconv (cd, &input, &input_len, &output, &output_len);
+  processed = iconv (cd, (ICONV_CONST char **)&input, &input_len,
+                     &output, &output_len);
   iconv_close (cd);
   if (processed == (size_t) -1 || input_len)
     {
@@ -240,7 +357,7 @@ copy_and_escape (char *buffer, const void *text, size_t textlen)
   int i;
   const unsigned char *s = (unsigned char *)text;
   char *p = buffer;
-  
+
   for (i=0; i < textlen; i++)
     {
       if (s[i] < ' ' || s[i] == '+')
@@ -269,7 +386,7 @@ copy_and_escape (char *buffer, const void *text, size_t textlen)
 int
 pinentry_inq_quality (pinentry_t pin, const char *passphrase, size_t length)
 {
-  ASSUAN_CONTEXT ctx = pin->ctx_assuan;
+  assuan_context_t ctx = pin->ctx_assuan;
   const char prefix[] = "INQUIRE QUALITY ";
   char *command;
   char *line;
@@ -300,7 +417,7 @@ pinentry_inq_quality (pinentry_t pin, const char *passphrase, size_t length)
 
   for (;;)
     {
-      do 
+      do
         {
           rc = assuan_read_line (ctx, &line, &linelen);
           if (rc)
@@ -308,7 +425,7 @@ pinentry_inq_quality (pinentry_t pin, const char *passphrase, size_t length)
               fprintf (stderr, "ASSUAN READ LINE failed: rc=%d\n", rc);
               return 0;
             }
-        }    
+        }
       while (*line == '#' || !linelen);
       if (line[0] == 'E' && line[1] == 'N' && line[2] == 'D'
           && (!line[3] || line[3] == ' '))
@@ -341,13 +458,23 @@ char *
 pinentry_setbufferlen (pinentry_t pin, int len)
 {
   char *newp;
-  if (len < pinentry.pin_len)
-    return NULL;
-  newp = secmem_realloc (pin->pin, 2 * pin->pin_len);
+
+  if (pin->pin_len)
+    assert (pin->pin);
+  else
+    assert (!pin->pin);
+
+  if (len < 2048)
+    len = 2048;
+
+  if (len <= pin->pin_len)
+    return pin->pin;
+
+  newp = secmem_realloc (pin->pin, len);
   if (newp)
     {
       pin->pin = newp;
-      pin->pin_len *= 2;
+      pin->pin_len = len;
     }
   else
     {
@@ -358,6 +485,54 @@ pinentry_setbufferlen (pinentry_t pin, int len)
   return newp;
 }
 
+static void
+pinentry_setbuffer_clear (pinentry_t pin)
+{
+  if (! pin->pin)
+    {
+      assert (pin->pin_len == 0);
+      return;
+    }
+
+  assert (pin->pin_len > 0);
+
+  secmem_free (pin->pin);
+  pin->pin = NULL;
+  pin->pin_len = 0;
+}
+
+static void
+pinentry_setbuffer_init (pinentry_t pin)
+{
+  pinentry_setbuffer_clear (pin);
+  pinentry_setbufferlen (pin, 0);
+}
+
+/* passphrase better be alloced with secmem_alloc.  */
+void
+pinentry_setbuffer_use (pinentry_t pin, char *passphrase, int len)
+{
+  if (! passphrase)
+    {
+      assert (len == 0);
+      pinentry_setbuffer_clear (pin);
+
+      return;
+    }
+
+  if (passphrase && len == 0)
+    len = strlen (passphrase) + 1;
+
+  if (pin->pin)
+    secmem_free (pin->pin);
+
+  pin->pin = passphrase;
+  pin->pin_len = len;
+}
+
+static struct assuan_malloc_hooks assuan_malloc_hooks = {
+  secmem_malloc, secmem_realloc, secmem_free
+};
 
 /* Initialize the secure memory subsystem, drop privileges and return.
    Must be called early. */
@@ -369,6 +544,8 @@ pinentry_init (const char *pgmname)
     abort ();
   strcpy (this_pgmname, pgmname);
 
+  gpgrt_check_version (NULL);
+
   /* Initialize secure memory.  1 is too small, so the default size
      will be used.  */
   secmem_init (1);
@@ -376,10 +553,11 @@ pinentry_init (const char *pgmname)
   drop_privs ();
 
   if (atexit (secmem_term))
-    /* FIXME: Could not register at-exit function, bail out.  */
-    ;
+    {
+      /* FIXME: Could not register at-exit function, bail out.  */
+    }
 
-  assuan_set_malloc_hooks (secmem_malloc, secmem_realloc, secmem_free);
+  assuan_set_malloc_hooks (&assuan_malloc_hooks);
 }
 
 /* Simple test to check whether DISPLAY is set or the option --display
@@ -403,26 +581,49 @@ pinentry_have_display (int argc, char **argv)
 
 
 
-static void 
-usage (void)
+/* Print usage information and and provide strings for help. */
+static const char *
+my_strusage( int level )
 {
-  fprintf (stdout, "Usage: %s [OPTION]...\n"
-"Ask securely for a secret and print it to stdout.\n"
-"\n"
-"      --display DISPLAY Set the X display\n"
-"      --ttyname PATH    Set the tty terminal node name\n"
-"      --ttytype NAME    Set the tty terminal type\n"
-"      --lc-ctype        Set the tty LC_CTYPE value\n"
-"      --lc-messages     Set the tty LC_MESSAGES value\n"
-"      --timeout SECS    Timeout waiting for input after this many seconds\n"
-#ifdef ENABLE_ENHANCED
-"  -e, --enhanced        Ask for timeout and insurance, too\n"
-#endif
-"  -g, --no-global-grab  Grab keyboard only while window is focused\n"
-"      --parent-wid      Parent window ID (for positioning)\n"
-"  -d, --debug           Turn on debugging output\n"
-"  -h, --help            Display this help and exit\n"
-"      --version         Output version information and exit\n", this_pgmname);
+  const char *p;
+
+  switch (level)
+    {
+    case 11: p = this_pgmname; break;
+    case 12: p = "pinentry"; break;
+    case 13: p = PACKAGE_VERSION; break;
+    case 14: p = "Copyright (C) 2016 g10 Code GmbH"; break;
+    case 19: p = "Please report bugs to <" PACKAGE_BUGREPORT ">.\n"; break;
+    case 1:
+    case 40:
+      {
+        static char *str;
+
+        if (!str)
+          {
+            size_t n = 50 + strlen (this_pgmname);
+            str = malloc (n);
+            if (str)
+              {
+                snprintf (str, n, "Usage: %s [options] (-h for help)",
+                          this_pgmname);
+                str[n-1] = 0;
+              }
+          }
+        p = str;
+      }
+      break;
+    case 41:
+      p = "Ask securely for a secret and print it to stdout.";
+      break;
+
+    case 42:
+      p = "1"; /* Flag print 40 as part of 41. */
+      break;
+
+    default: p = NULL; break;
+    }
+  return p;
 }
 
 
@@ -476,59 +677,47 @@ parse_color (char *arg, pinentry_color_t *color_p, int *bright_p)
   return new_arg;
 }
 
-/* Parse the command line options.  Returns 1 if user should print
-   version and exit.  Can exit the program if only help output is
-   requested.  */
-int
+/* Parse the command line options.  May exit the program if only help
+   or version output is requested.  */
+void
 pinentry_parse_opts (int argc, char *argv[])
 {
-  int opt;
-  int opt_help = 0;
-  int opt_version = 0;
-  struct option opts[] =
-    {{ "debug", no_argument,             0, 'd' },
-     { "display", required_argument,     0, 'D' },
-     { "ttyname", required_argument,     0, 'T' },
-     { "ttytype", required_argument,     0, 'N' },
-     { "lc-ctype", required_argument,    0, 'C' },
-     { "lc-messages", required_argument, 0, 'M' },
-#ifdef ENABLE_ENHANCED
-     { "enhanced", no_argument,          0, 'e' },
-#endif
-     { "no-global-grab", no_argument,    0, 'g' },
-     { "parent-wid", required_argument,  0, 'W' },
-     { "colors", required_argument,	 0, 'c' },
-     { "help", no_argument,              0, 'h' },
-     { "version", no_argument, &opt_version, 1 },
-     { "timeout", required_argument, 0, 'o' },
-     { NULL, 0, NULL, 0 }};
-  
-  while ((opt = getopt_long (argc, argv, "degh", opts, NULL)) != -1)
+  static ARGPARSE_OPTS opts[] = {
+    ARGPARSE_s_n('d', "debug",    "Turn on debugging output"),
+    ARGPARSE_s_s('D', "display",  "|DISPLAY|Set the X display"),
+    ARGPARSE_s_s('T', "ttyname",  "|FILE|Set the tty terminal node name"),
+    ARGPARSE_s_s('N', "ttytype",  "|NAME|Set the tty terminal type"),
+    ARGPARSE_s_s('C', "lc-ctype", "|STRING|Set the tty LC_CTYPE value"),
+    ARGPARSE_s_s('M', "lc-messages", "|STRING|Set the tty LC_MESSAGES value"),
+    ARGPARSE_s_i('o', "timeout",
+                 "|SECS|Timeout waiting for input after this many seconds"),
+    ARGPARSE_s_n('g', "no-global-grab",
+                 "Grab keyboard only while window is focused"),
+    ARGPARSE_s_u('W', "parent-wid", "Parent window ID (for positioning)"),
+    ARGPARSE_s_s('c', "colors", "|STRING|Set custom colors for ncurses"),
+    ARGPARSE_end()
+  };
+  ARGPARSE_ARGS pargs = { &argc, &argv, 0 };
+
+  set_strusage (my_strusage);
+
+  pinentry_reset (1);
+
+  while (arg_parse  (&pargs, opts))
     {
-      switch (opt)
+      switch (pargs.r_opt)
         {
-        case 0:
-        case '?':
-          break;
         case 'd':
           pinentry.debug = 1;
           break;
-#ifdef ENABLE_ENHANCED
-        case 'e':
-          pinentry.enhanced = 1;
-          break;
-#endif
         case 'g':
           pinentry.grab = 0;
-          break;
-        case 'h':
-          opt_help = 1;
           break;
 
 	case 'D':
           /* Note, this is currently not used because the GUI engine
              has already been initialized when parsing these options. */
-	  pinentry.display = strdup (optarg);
+	  pinentry.display = strdup (pargs.r.ret_str);
 	  if (!pinentry.display)
 	    {
 #ifndef HAVE_W32CE_SYSTEM
@@ -536,9 +725,9 @@ pinentry_parse_opts (int argc, char *argv[])
 #endif
 	      exit (EXIT_FAILURE);
 	    }
-	  break; 
+	  break;
 	case 'T':
-	  pinentry.ttyname = strdup (optarg);
+	  pinentry.ttyname = strdup (pargs.r.ret_str);
 	  if (!pinentry.ttyname)
 	    {
 #ifndef HAVE_W32CE_SYSTEM
@@ -548,7 +737,7 @@ pinentry_parse_opts (int argc, char *argv[])
 	    }
 	  break;
 	case 'N':
-	  pinentry.ttytype = strdup (optarg);
+	  pinentry.ttytype = strdup (pargs.r.ret_str);
 	  if (!pinentry.ttytype)
 	    {
 #ifndef HAVE_W32CE_SYSTEM
@@ -558,7 +747,7 @@ pinentry_parse_opts (int argc, char *argv[])
 	    }
 	  break;
 	case 'C':
-	  pinentry.lc_ctype = strdup (optarg);
+	  pinentry.lc_ctype = strdup (pargs.r.ret_str);
 	  if (!pinentry.lc_ctype)
 	    {
 #ifndef HAVE_W32CE_SYSTEM
@@ -568,7 +757,7 @@ pinentry_parse_opts (int argc, char *argv[])
 	    }
 	  break;
 	case 'M':
-	  pinentry.lc_messages = strdup (optarg);
+	  pinentry.lc_messages = strdup (pargs.r.ret_str);
 	  if (!pinentry.lc_messages)
 	    {
 #ifndef HAVE_W32CE_SYSTEM
@@ -578,40 +767,38 @@ pinentry_parse_opts (int argc, char *argv[])
 	    }
 	  break;
 	case 'W':
-	  pinentry.parent_wid = atoi (optarg);
-	  /* FIXME: Add some error handling.  Use strtol.  */
+	  pinentry.parent_wid = pargs.r.ret_ulong;
 	  break;
 
 	case 'c':
-	  optarg = parse_color (optarg, &pinentry.color_fg,
-				&pinentry.color_fg_bright);
-	  optarg = parse_color (optarg, &pinentry.color_bg, NULL);
-	  optarg = parse_color (optarg, &pinentry.color_so,
-				&pinentry.color_so_bright);
+          {
+            char *tmpstr = pargs.r.ret_str;
+
+            tmpstr = parse_color (tmpstr, &pinentry.color_fg,
+                                  &pinentry.color_fg_bright);
+            tmpstr = parse_color (tmpstr, &pinentry.color_bg, NULL);
+            tmpstr = parse_color (tmpstr, &pinentry.color_so,
+                                  &pinentry.color_so_bright);
+          }
 	  break;
 
 	case 'o':
-	  pinentry.timeout = atoi(optarg);
+	  pinentry.timeout = pargs.r.ret_int;
 	  break;
+
         default:
-          fprintf (stderr, "%s: oops: option not handled\n", this_pgmname);
+          pargs.err = ARGPARSE_PRINT_WARNING;
 	  break;
         }
     }
-  if (opt_version) 
-    return 1;
-  if (opt_help) 
-    {
-      usage ();
-      exit (EXIT_SUCCESS);
-    }
-  return 0;
 }
 
 
-static int
-option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
+static gpg_error_t
+option_handler (assuan_context_t ctx, const char *key, const char *value)
 {
+  (void)ctx;
+
   if (!strcmp (key, "no-grab") && !*value)
     pinentry.grab = 0;
   else if (!strcmp (key, "grab") && !*value)
@@ -631,7 +818,7 @@ option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
 	free (pinentry.display);
       pinentry.display = strdup (value);
       if (!pinentry.display)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "ttyname"))
     {
@@ -639,7 +826,7 @@ option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
 	free (pinentry.ttyname);
       pinentry.ttyname = strdup (value);
       if (!pinentry.ttyname)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "ttytype"))
     {
@@ -647,7 +834,7 @@ option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
 	free (pinentry.ttytype);
       pinentry.ttytype = strdup (value);
       if (!pinentry.ttytype)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "lc-ctype"))
     {
@@ -655,7 +842,7 @@ option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
 	free (pinentry.lc_ctype);
       pinentry.lc_ctype = strdup (value);
       if (!pinentry.lc_ctype)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "lc-messages"))
     {
@@ -663,7 +850,7 @@ option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
 	free (pinentry.lc_messages);
       pinentry.lc_messages = strdup (value);
       if (!pinentry.lc_messages)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "parent-wid"))
     {
@@ -676,28 +863,71 @@ option_handler (ASSUAN_CONTEXT ctx, const char *key, const char *value)
         free (pinentry.touch_file);
       pinentry.touch_file = strdup (value);
       if (!pinentry.touch_file)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "default-ok"))
     {
       pinentry.default_ok = strdup (value);
       if (!pinentry.default_ok)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "default-cancel"))
     {
       pinentry.default_cancel = strdup (value);
       if (!pinentry.default_cancel)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
     }
   else if (!strcmp (key, "default-prompt"))
     {
       pinentry.default_prompt = strdup (value);
       if (!pinentry.default_prompt)
-	return ASSUAN_Out_Of_Core;
+	return gpg_error_from_syserror ();
+    }
+  else if (!strcmp (key, "default-pwmngr"))
+    {
+      pinentry.default_pwmngr = strdup (value);
+      if (!pinentry.default_pwmngr)
+	return gpg_error_from_syserror ();
+    }
+  else if (!strcmp (key, "default-cf-visi"))
+    {
+      pinentry.default_cf_visi = strdup (value);
+      if (!pinentry.default_cf_visi)
+	return gpg_error_from_syserror ();
+    }
+  else if (!strcmp (key, "default-tt-visi"))
+    {
+      pinentry.default_tt_visi = strdup (value);
+      if (!pinentry.default_tt_visi)
+	return gpg_error_from_syserror ();
+    }
+  else if (!strcmp (key, "default-tt-hide"))
+    {
+      pinentry.default_tt_hide = strdup (value);
+      if (!pinentry.default_tt_hide)
+	return gpg_error_from_syserror ();
+    }
+  else if (!strcmp (key, "allow-external-password-cache") && !*value)
+    {
+      pinentry.allow_external_password_cache = 1;
+      pinentry.tried_password_cache = 0;
+    }
+  else if (!strcmp (key, "allow-emacs-prompt") && !*value)
+    {
+#ifdef INSIDE_EMACS
+      pinentry_enable_emacs_cmd_handler ();
+#endif
+    }
+  else if (!strcmp (key, "invisible-char"))
+    {
+      if (pinentry.invisible_char)
+        free (pinentry.invisible_char);
+      pinentry.invisible_char = strdup (value);
+      if (!pinentry.invisible_char)
+	return gpg_error_from_syserror ();
     }
   else
-    return ASSUAN_Invalid_Option;
+    return gpg_error (GPG_ERR_UNKNOWN_OPTION);
   return 0;
 }
 
@@ -710,7 +940,7 @@ strcpy_escaped (char *d, const char *s)
   while (*s)
     {
       if (*s == '%' && s[1] && s[2])
-        { 
+        {
           s++;
           *d++ = xtoi_2 ( s);
           s += 2;
@@ -718,18 +948,42 @@ strcpy_escaped (char *d, const char *s)
       else
         *d++ = *s++;
     }
-  *d = 0; 
+  *d = 0;
 }
 
 
-static int
-cmd_setdesc (ASSUAN_CONTEXT ctx, char *line)
+static void
+write_status_error (assuan_context_t ctx, pinentry_t pe)
+{
+  char buf[500];
+  const char *pgm;
+
+  pgm = strchr (this_pgmname, '-');
+  if (pgm && pgm[1])
+    pgm++;
+  else
+    pgm = this_pgmname;
+
+  snprintf (buf, sizeof buf, "%s.%s %d %s",
+            pgm,
+            pe->specific_err_loc? pe->specific_err_loc : "?",
+            pe->specific_err,
+            pe->specific_err_info? pe->specific_err_info : "");
+  buf[sizeof buf -1] = 0;
+  assuan_write_status (ctx, "ERROR", buf);
+}
+
+
+static gpg_error_t
+cmd_setdesc (assuan_context_t ctx, char *line)
 {
   char *newd;
-  newd = malloc (strlen (line) + 1);
 
+  (void)ctx;
+
+  newd = malloc (strlen (line) + 1);
   if (!newd)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newd, line);
   if (pinentry.description)
@@ -739,14 +993,16 @@ cmd_setdesc (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_setprompt (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_setprompt (assuan_context_t ctx, char *line)
 {
   char *newp;
-  newp = malloc (strlen (line) + 1);
 
+  (void)ctx;
+
+  newp = malloc (strlen (line) + 1);
   if (!newp)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newp, line);
   if (pinentry.prompt)
@@ -756,14 +1012,73 @@ cmd_setprompt (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_seterror (ASSUAN_CONTEXT ctx, char *line)
+/* The data provided at LINE may be used by pinentry implementations
+   to identify a key for caching strategies of its own.  The empty
+   string and --clear mean that the key does not have a stable
+   identifier.  */
+static gpg_error_t
+cmd_setkeyinfo (assuan_context_t ctx, char *line)
+{
+  (void)ctx;
+
+  if (pinentry.keyinfo)
+    free (pinentry.keyinfo);
+
+  if (*line && strcmp(line, "--clear") != 0)
+    pinentry.keyinfo = strdup (line);
+  else
+    pinentry.keyinfo = NULL;
+
+  return 0;
+}
+
+
+static gpg_error_t
+cmd_setrepeat (assuan_context_t ctx, char *line)
+{
+  char *p;
+
+  (void)ctx;
+
+  p = malloc (strlen (line) + 1);
+  if (!p)
+    return gpg_error_from_syserror ();
+
+  strcpy_escaped (p, line);
+  free (pinentry.repeat_passphrase);
+  pinentry.repeat_passphrase = p;
+  return 0;
+}
+
+
+static gpg_error_t
+cmd_setrepeaterror (assuan_context_t ctx, char *line)
+{
+  char *p;
+
+  (void)ctx;
+
+  p = malloc (strlen (line) + 1);
+  if (!p)
+    return gpg_error_from_syserror ();
+
+  strcpy_escaped (p, line);
+  free (pinentry.repeat_error_string);
+  pinentry.repeat_error_string = p;
+  return 0;
+}
+
+
+static gpg_error_t
+cmd_seterror (assuan_context_t ctx, char *line)
 {
   char *newe;
-  newe = malloc (strlen (line) + 1);
 
+  (void)ctx;
+
+  newe = malloc (strlen (line) + 1);
   if (!newe)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newe, line);
   if (pinentry.error)
@@ -773,14 +1088,16 @@ cmd_seterror (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_setok (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_setok (assuan_context_t ctx, char *line)
 {
   char *newo;
-  newo = malloc (strlen (line) + 1);
 
+  (void)ctx;
+
+  newo = malloc (strlen (line) + 1);
   if (!newo)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newo, line);
   if (pinentry.ok)
@@ -790,14 +1107,16 @@ cmd_setok (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_setnotok (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_setnotok (assuan_context_t ctx, char *line)
 {
   char *newo;
-  newo = malloc (strlen (line) + 1);
 
+  (void)ctx;
+
+  newo = malloc (strlen (line) + 1);
   if (!newo)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newo, line);
   if (pinentry.notok)
@@ -807,14 +1126,16 @@ cmd_setnotok (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_setcancel (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_setcancel (assuan_context_t ctx, char *line)
 {
   char *newc;
-  newc = malloc (strlen (line) + 1);
 
+  (void)ctx;
+
+  newc = malloc (strlen (line) + 1);
   if (!newc)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newc, line);
   if (pinentry.cancel)
@@ -824,24 +1145,28 @@ cmd_setcancel (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_settimeout (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_settimeout (assuan_context_t ctx, char *line)
 {
-    if (line && *line)
-	pinentry.timeout = atoi(line);
+  (void)ctx;
 
-    return 0;
+  if (line && *line)
+    pinentry.timeout = atoi (line);
+
+  return 0;
 }
 
-static int
-cmd_settitle (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_settitle (assuan_context_t ctx, char *line)
 {
   char *newt;
+
+  (void)ctx;
+
   newt = malloc (strlen (line) + 1);
-  
   if (!newt)
-    return ASSUAN_Out_Of_Core;
-  
+    return gpg_error_from_syserror ();
+
   strcpy_escaped (newt, line);
   if (pinentry.title)
     free (pinentry.title);
@@ -849,17 +1174,19 @@ cmd_settitle (ASSUAN_CONTEXT ctx, char *line)
   return 0;
 }
 
-static int
-cmd_setqualitybar (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_setqualitybar (assuan_context_t ctx, char *line)
 {
   char *newval;
+
+  (void)ctx;
 
   if (!*line)
     line = "Quality:";
 
   newval = malloc (strlen (line) + 1);
   if (!newval)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error_from_syserror ();
 
   strcpy_escaped (newval, line);
   if (pinentry.quality_bar)
@@ -869,17 +1196,19 @@ cmd_setqualitybar (ASSUAN_CONTEXT ctx, char *line)
 }
 
 /* Set the tooltip to be used for a quality bar.  */
-static int
-cmd_setqualitybar_tt (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_setqualitybar_tt (assuan_context_t ctx, char *line)
 {
   char *newval;
+
+  (void)ctx;
 
   if (*line)
     {
       newval = malloc (strlen (line) + 1);
       if (!newval)
-        return ASSUAN_Out_Of_Core;
-      
+        return gpg_error_from_syserror ();
+
       strcpy_escaped (newval, line);
     }
   else
@@ -891,22 +1220,79 @@ cmd_setqualitybar_tt (ASSUAN_CONTEXT ctx, char *line)
 }
 
 
-static int
-cmd_getpin (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_getpin (assuan_context_t ctx, char *line)
 {
   int result;
   int set_prompt = 0;
+  int just_read_password_from_cache = 0;
 
-  pinentry.pin = secmem_malloc (pinentry.pin_len);
+  (void)line;
+
+  pinentry_setbuffer_init (&pinentry);
   if (!pinentry.pin)
-    return ASSUAN_Out_Of_Core;
+    return gpg_error (GPG_ERR_ENOMEM);
+
+  /* Try reading from the password cache.  */
+  if (/* If repeat passphrase is set, then we don't want to read from
+	 the cache.  */
+      ! pinentry.repeat_passphrase
+      /* Are we allowed to read from the cache?  */
+      && pinentry.allow_external_password_cache
+      && pinentry.keyinfo
+      /* Only read from the cache if we haven't already tried it.  */
+      && ! pinentry.tried_password_cache
+      /* If the last read resulted in an error, then don't read from
+	 the cache.  */
+      && ! pinentry.error)
+    {
+      char *password;
+
+      pinentry.tried_password_cache = 1;
+
+      password = password_cache_lookup (pinentry.keyinfo);
+      if (password)
+	/* There is a cached password.  Try it.  */
+	{
+	  int len = strlen(password) + 1;
+	  if (len > pinentry.pin_len)
+	    len = pinentry.pin_len;
+
+	  memcpy (pinentry.pin, password, len);
+	  pinentry.pin[len] = '\0';
+
+	  secmem_free (password);
+
+	  pinentry.pin_from_cache = 1;
+
+	  assuan_write_status (ctx, "PASSWORD_FROM_CACHE", "");
+
+	  /* Result is the length of the password not including the
+	     NUL terminator.  */
+	  result = len - 1;
+
+	  just_read_password_from_cache = 1;
+
+	  goto out;
+	}
+    }
+
+  /* The password was not cached (or we are not allowed to / cannot
+     use the cache).  Prompt the user.  */
+  pinentry.pin_from_cache = 0;
+
   if (!pinentry.prompt)
     {
       pinentry.prompt = pinentry.default_prompt?pinentry.default_prompt:"PIN:";
       set_prompt = 1;
     }
   pinentry.locale_err = 0;
+  pinentry.specific_err = 0;
+  pinentry.specific_err_loc = NULL;
+  free (pinentry.specific_err_info);
+  pinentry.specific_err_info = NULL;
   pinentry.close_button = 0;
+  pinentry.repeat_okay = 0;
   pinentry.one_button = 0;
   pinentry.ctx_assuan = ctx;
   result = (*pinentry_cmd_handler) (&pinentry);
@@ -915,6 +1301,11 @@ cmd_getpin (ASSUAN_CONTEXT ctx, char *line)
     {
       free (pinentry.error);
       pinentry.error = NULL;
+    }
+  if (pinentry.repeat_passphrase)
+    {
+      free (pinentry.repeat_passphrase);
+      pinentry.repeat_passphrase = NULL;
     }
   if (set_prompt)
     pinentry.prompt = NULL;
@@ -926,26 +1317,37 @@ cmd_getpin (ASSUAN_CONTEXT ctx, char *line)
 
   if (result < 0)
     {
-      if (pinentry.pin)
-	{
-	  secmem_free (pinentry.pin);
-	  pinentry.pin = NULL;
-	}
-      return pinentry.locale_err? ASSUAN_Locale_Problem: ASSUAN_Canceled;
+      pinentry_setbuffer_clear (&pinentry);
+      if (pinentry.specific_err)
+        {
+          write_status_error (ctx, &pinentry);
+          return pinentry.specific_err;
+        }
+      return (pinentry.locale_err
+	      ? gpg_error (GPG_ERR_LOCALE_PROBLEM)
+	      : gpg_error (GPG_ERR_CANCELED));
     }
 
+ out:
   if (result)
     {
-      result = assuan_send_data (ctx, pinentry.pin, result);
+      if (pinentry.repeat_okay)
+        assuan_write_status (ctx, "PIN_REPEATED", "");
+      result = assuan_send_data (ctx, pinentry.pin, strlen(pinentry.pin));
       if (!result)
 	result = assuan_send_data (ctx, NULL, 0);
+
+      if (/* GPG Agent says it's okay.  */
+	  pinentry.allow_external_password_cache && pinentry.keyinfo
+	  /* We didn't just read it from the cache.  */
+	  && ! just_read_password_from_cache
+	  /* And the user said it's okay.  */
+	  && pinentry.may_cache_password)
+	/* Cache the password.  */
+	password_cache_save (pinentry.keyinfo, pinentry.pin);
     }
 
-  if (pinentry.pin)
-    {
-      secmem_free (pinentry.pin);
-      pinentry.pin = NULL;
-    }
+  pinentry_setbuffer_clear (&pinentry);
 
   return result;
 }
@@ -958,8 +1360,8 @@ cmd_getpin (ASSUAN_CONTEXT ctx, char *line)
    update pinentry or to have the caller test for the message
    command.  New applications which are free to require an updated
    pinentry should use MESSAGE instead. */
-static int
-cmd_confirm (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_confirm (assuan_context_t ctx, char *line)
 {
   int result;
 
@@ -967,7 +1369,12 @@ cmd_confirm (ASSUAN_CONTEXT ctx, char *line)
   pinentry.quality_bar = 0;
   pinentry.close_button = 0;
   pinentry.locale_err = 0;
+  pinentry.specific_err = 0;
+  pinentry.specific_err_loc = NULL;
+  free (pinentry.specific_err_info);
+  pinentry.specific_err_info = NULL;
   pinentry.canceled = 0;
+  pinentry_setbuffer_clear (&pinentry);
   result = (*pinentry_cmd_handler) (&pinentry);
   if (pinentry.error)
     {
@@ -978,38 +1385,33 @@ cmd_confirm (ASSUAN_CONTEXT ctx, char *line)
   if (pinentry.close_button)
     assuan_write_status (ctx, "BUTTON_INFO", "close");
 
-  return result ? 0
-                : (pinentry.locale_err? ASSUAN_Locale_Problem
-                                      : (pinentry.one_button 
-                                         ? 0
-                                         : (pinentry.canceled
-                                            ? ASSUAN_Canceled
-                                            : ASSUAN_Not_Confirmed)));
+  if (result)
+    return 0;
+
+  if (pinentry.specific_err)
+    {
+      write_status_error (ctx, &pinentry);
+      return pinentry.specific_err;
+    }
+
+  if (pinentry.locale_err)
+    return gpg_error (GPG_ERR_LOCALE_PROBLEM);
+
+  if (pinentry.one_button)
+    return 0;
+
+  if (pinentry.canceled)
+    return gpg_error (GPG_ERR_CANCELED);
+  return gpg_error (GPG_ERR_NOT_CONFIRMED);
 }
 
 
-static int
-cmd_message (ASSUAN_CONTEXT ctx, char *line)
+static gpg_error_t
+cmd_message (assuan_context_t ctx, char *line)
 {
-  int result;
+  (void)line;
 
-  pinentry.one_button = 1;
-  pinentry.quality_bar = 0;
-  pinentry.close_button = 0;
-  pinentry.locale_err = 0;
-  result = (*pinentry_cmd_handler) (&pinentry);
-  if (pinentry.error)
-    {
-      free (pinentry.error);
-      pinentry.error = NULL;
-    }
-
-  if (pinentry.close_button)
-    assuan_write_status (ctx, "BUTTON_INFO", "close");
-
-  return result ? 0 
-                : (pinentry.locale_err? ASSUAN_Locale_Problem
-                                      : 0);
+  return cmd_confirm (ctx, "--one-button");
 }
 
 /* GETINFO <what>
@@ -1019,68 +1421,124 @@ cmd_message (ASSUAN_CONTEXT ctx, char *line)
 
      version     - Return the version of the program.
      pid         - Return the process id of the server.
+     flavor      - Return information about the used pinentry flavor
  */
-static int
+static gpg_error_t
 cmd_getinfo (assuan_context_t ctx, char *line)
 {
   int rc;
+  const char *s;
+  char buffer[100];
 
   if (!strcmp (line, "version"))
     {
-      const char *s = VERSION;
+      s = VERSION;
       rc = assuan_send_data (ctx, s, strlen (s));
     }
   else if (!strcmp (line, "pid"))
     {
-      char numbuf[50];
 
-      snprintf (numbuf, sizeof numbuf, "%lu", (unsigned long)getpid ());
-      rc = assuan_send_data (ctx, numbuf, strlen (numbuf));
+      snprintf (buffer, sizeof buffer, "%lu", (unsigned long)getpid ());
+      buffer[sizeof buffer -1] = 0;
+      rc = assuan_send_data (ctx, buffer, strlen (buffer));
+    }
+  else if (!strcmp (line, "flavor"))
+    {
+      const char *flags;
+
+      if (!strncmp (this_pgmname, "pinentry-", 9) && this_pgmname[9])
+        s = this_pgmname + 9;
+      else
+        s = this_pgmname;
+
+      if (0)
+        ;
+#ifdef INSIDE_EMACS
+      else if (pinentry_cmd_handler == emacs_cmd_handler)
+        flags = ":emacs";
+#endif
+#ifdef FALLBACK_CURSES
+      else if (pinentry_cmd_handler == curses_cmd_handler)
+        flags = ":curses";
+#endif
+      else
+        flags = "";
+
+      snprintf (buffer, sizeof buffer, "%s%s", s, flags);
+      buffer[sizeof buffer -1] = 0;
+      rc = assuan_send_data (ctx, buffer, strlen (buffer));
     }
   else
-    rc = ASSUAN_Parameter_Error;
+    rc = gpg_error (GPG_ERR_ASS_PARAMETER);
   return rc;
 }
 
+/* CLEARPASSPHRASE <cacheid>
+
+   Clear the cache passphrase associated with the key identified by
+   cacheid.
+ */
+static gpg_error_t
+cmd_clear_passphrase (assuan_context_t ctx, char *line)
+{
+  (void)ctx;
+
+  if (! line)
+    return gpg_error (GPG_ERR_ASS_INV_VALUE);
+
+  /* Remove leading and trailing white space.  */
+  while (*line == ' ')
+    line ++;
+  while (line[strlen (line) - 1] == ' ')
+    line[strlen (line) - 1] = 0;
+
+  switch (password_cache_clear (line))
+    {
+    case 1: return 0;
+    case 0: return gpg_error (GPG_ERR_ASS_INV_VALUE);
+    default: return gpg_error (GPG_ERR_ASS_GENERAL);
+    }
+}
 
 /* Tell the assuan library about our commands.  */
-static int
-register_commands (ASSUAN_CONTEXT ctx)
+static gpg_error_t
+register_commands (assuan_context_t ctx)
 {
   static struct
   {
     const char *name;
-    int cmd_id;
-    int (*handler) (ASSUAN_CONTEXT, char *line);
+    gpg_error_t (*handler) (assuan_context_t, char *line);
   } table[] =
     {
-      { "SETDESC",    0,  cmd_setdesc },
-      { "SETPROMPT",  0,  cmd_setprompt },
-      { "SETERROR",   0,  cmd_seterror },
-      { "SETOK",      0,  cmd_setok },
-      { "SETNOTOK",   0,  cmd_setnotok },
-      { "SETCANCEL",  0,  cmd_setcancel },
-      { "GETPIN",     0,  cmd_getpin },
-      { "CONFIRM",    0,  cmd_confirm },
-      { "MESSAGE",    0,  cmd_message },
-      { "SETQUALITYBAR", 0,  cmd_setqualitybar },
-      { "SETQUALITYBAR_TT", 0,  cmd_setqualitybar_tt },
-      { "GETINFO",    0,  cmd_getinfo },
-      { "SETTITLE",   0,  cmd_settitle },
-      { "SETTIMEOUT",   0,  cmd_settimeout },
+      { "SETDESC",    cmd_setdesc },
+      { "SETPROMPT",  cmd_setprompt },
+      { "SETKEYINFO", cmd_setkeyinfo },
+      { "SETREPEAT",  cmd_setrepeat },
+      { "SETREPEATERROR", cmd_setrepeaterror },
+      { "SETERROR",   cmd_seterror },
+      { "SETOK",      cmd_setok },
+      { "SETNOTOK",   cmd_setnotok },
+      { "SETCANCEL",  cmd_setcancel },
+      { "GETPIN",     cmd_getpin },
+      { "CONFIRM",    cmd_confirm },
+      { "MESSAGE",    cmd_message },
+      { "SETQUALITYBAR", cmd_setqualitybar },
+      { "SETQUALITYBAR_TT", cmd_setqualitybar_tt },
+      { "GETINFO",    cmd_getinfo },
+      { "SETTITLE",   cmd_settitle },
+      { "SETTIMEOUT", cmd_settimeout },
+      { "CLEARPASSPHRASE", cmd_clear_passphrase },
       { NULL }
     };
-  int i, j, rc;
+  int i, j;
+  gpg_error_t rc;
 
   for (i = j = 0; table[i].name; i++)
     {
-      rc = assuan_register_command (ctx,
-                                    table[i].cmd_id ? table[i].cmd_id
-                                                   : (ASSUAN_CMD_USER + j++),
-                                    table[i].name, table[i].handler);
+      rc = assuan_register_command (ctx, table[i].name, table[i].handler, NULL);
       if (rc)
         return rc;
-    } 
+    }
   return 0;
 }
 
@@ -1088,9 +1546,9 @@ register_commands (ASSUAN_CONTEXT ctx)
 int
 pinentry_loop2 (int infd, int outfd)
 {
-  int rc;
-  int filedes[2];
-  ASSUAN_CONTEXT ctx;
+  gpg_error_t rc;
+  assuan_fd_t filedes[2];
+  assuan_context_t ctx;
 
   /* Extra check to make sure we have dropped privs. */
 #ifndef HAVE_DOSISH_SYSTEM
@@ -1098,23 +1556,31 @@ pinentry_loop2 (int infd, int outfd)
     abort ();
 #endif
 
+  rc = assuan_new (&ctx);
+  if (rc)
+    {
+      fprintf (stderr, "server context creation failed: %s\n",
+	       gpg_strerror (rc));
+      return -1;
+    }
+
   /* For now we use a simple pipe based server so that we can work
      from scripts.  We will later add options to run as a daemon and
      wait for requests on a Unix domain socket.  */
-  filedes[0] = infd;
-  filedes[1] = outfd;
-  rc = assuan_init_pipe_server (&ctx, filedes);
+  filedes[0] = assuan_fdopen (infd);
+  filedes[1] = assuan_fdopen (outfd);
+  rc = assuan_init_pipe_server (ctx, filedes);
   if (rc)
     {
       fprintf (stderr, "%s: failed to initialize the server: %s\n",
-               this_pgmname, assuan_strerror(rc));
+               this_pgmname, gpg_strerror (rc));
       return -1;
     }
   rc = register_commands (ctx);
   if (rc)
     {
       fprintf (stderr, "%s: failed to the register commands with Assuan: %s\n",
-               this_pgmname, assuan_strerror(rc));
+               this_pgmname, gpg_strerror (rc));
       return -1;
     }
 
@@ -1122,7 +1588,8 @@ pinentry_loop2 (int infd, int outfd)
 #if 0
   assuan_set_log_stream (ctx, stderr);
 #endif
-  
+  assuan_register_reset_notify (ctx, pinentry_assuan_reset_handler);
+
   for (;;)
     {
       rc = assuan_accept (ctx);
@@ -1131,20 +1598,20 @@ pinentry_loop2 (int infd, int outfd)
       else if (rc)
         {
           fprintf (stderr, "%s: Assuan accept problem: %s\n",
-                   this_pgmname, assuan_strerror (rc));
+                   this_pgmname, gpg_strerror (rc));
           break;
         }
-      
+
       rc = assuan_process (ctx);
       if (rc)
         {
           fprintf (stderr, "%s: Assuan processing failed: %s\n",
-                   this_pgmname, assuan_strerror (rc));
+                   this_pgmname, gpg_strerror (rc));
           continue;
         }
     }
 
-  assuan_deinit_server (ctx);
+  assuan_release (ctx);
   return 0;
 }
 

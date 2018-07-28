@@ -1,5 +1,5 @@
 # Makefile.am - PIN entry GTK+ frontend.
-# Copyright (C) 2002 g10 Code GmbH
+# Copyright (C) 2002, 2015 g10 Code GmbH
 #
 # This file is part of PINENTRY.
 #
@@ -29,10 +29,9 @@ ncurses_include =
 libcurses =
 endif
 
-AM_CPPFLAGS = $(GTK2CFLAGS) $(ncurses_include) \
+AM_CPPFLAGS = $(COMMON_CFLAGS) $(GTK2CFLAGS) $(ncurses_include) \
 	-I$(top_srcdir)/secmem -I$(top_srcdir)/pinentry
-LDADD = ../pinentry/libpinentry.a ../assuan/libassuan.a ../secmem/libsecmem.a \
-	$(LIBCAP) $(GTK2LIBS) $(libcurses)
+LDADD = ../pinentry/libpinentry.a ../secmem/libsecmem.a \
+	$(COMMON_LIBS) $(LIBCAP) $(GTK2LIBS) $(libcurses)
 
-pinentry_gtk_2_SOURCES = pinentry-gtk-2.c \
-	gtksecentry.c gtksecentry.h gseal-gtk-compat.h
+pinentry_gtk_2_SOURCES = pinentry-gtk-2.c

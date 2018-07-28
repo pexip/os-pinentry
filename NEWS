@@ -1,3 +1,151 @@
+Noteworthy changes in version 1.0.0 (2016-11-22)
+------------------------------------------------
+
+ * Qt pinentry now supports repeat mode in one dialog.
+
+ * Qt and GTK pinentries now make it possible to show the entered
+   value.
+
+ * Qt pinentry now only grabs the keyboard if an entry field is
+   focused.
+
+ * Fixed foreground handling in pinentry-qt if compiled with Qt5 for
+   Windows.
+
+ * Fixed potential crash in Qt qualitybar calculation.
+
+ * GTK keyboard grabbing is now a bit more robust.  The cursor is
+   changed to a big dot as a visual indication that a pinentry has
+   popped up and is waiting for input.
+
+ * The GNOME pinentry now falls back to curses if it can't use the
+   GCR system prompter or a screenlock is active.
+
+ * Fixed error output for cached passwords.
+
+ * A show/hide passphrase button or checkbox is now available with
+   some pinentry flavors.
+
+ * Improved diagnostics and error codes.
+
+
+Noteworthy changes in version 0.9.7 (2015-12-07)
+------------------------------------------------
+
+ * Fix regressions in the Qt pinentry.
+
+ * Fix minor problems pinnetyr-tty.
+
+ * New option --invisible-char.
+
+
+Noteworthy changes in version 0.9.6 (2015-09-10)
+------------------------------------------------
+
+ * Many improvements for the dump tty pinentry.
+
+ * Use the standard GTK+-2 text entry widget instead of our outdated
+   and back-then-it-was-more-secure text widget.
+
+ * Use the standard Qt text widget.
+
+ * Allow for building a static Qt variant.
+
+ * Fix regression in w32 pinentry.
+
+
+Noteworthy changes in version 0.9.5 (2015-07-01)
+------------------------------------------------
+
+ * Replaced the internal Assuan and gpg-error code by the standard
+   libassuan and libgpg-error libraries.
+
+ * Add a new Emacs pinentry and use as fallback for GUI programs.
+
+ * gnome3: The use-password-manager checkbox does now work.
+
+ * Gtk: Improved fallback to curses feature.
+
+ * curses: Recognize DEL as backspace.
+
+
+Noteworthy changes in version 0.9.4 (2015-06-05)
+------------------------------------------------
+
+ * Fix regression in GTK+ and curses pinentries.
+
+
+Noteworthy changes in version 0.9.3 (2015-06-01)
+------------------------------------------------
+
+ * Improved documentation
+
+ * New pinentry-gnome3
+
+ * More improvements for pinentry-tty.
+
+ * Fixes for pinentry-curses including support for Ctrl-W, Ctrl-U,
+   Ctrl-H, Ctrl-L, and Alt-Backspace
+
+ * New Assuan command to request clearing an external cache.
+
+ * Fixed problems linking to ncursesw.
+
+ * All kind of other minor fixes.
+
+
+Noteworthy changes in version 0.9.2 (2015-05-11)
+------------------------------------------------
+
+ * Support for saving the passphrase with libsecret.
+
+ * Escape key works in the Gtk+ pinentry.
+
+ * Improvements for pinentry-tty.
+
+ * Minor cleanups for the native Windows pinentry.
+
+
+Noteworthy changes in version 0.9.1 (2015-03-18)
+------------------------------------------------
+
+ * Fixed build problems for systems without ncurses.
+
+ * Reworked the option parser to allow building on systems without
+   getopt_long.
+
+ * Fixed Qt4 build problems.
+
+
+Noteworthy changes in version 0.9.0 (2014-10-26)
+------------------------------------------------
+
+ * New command SETREPEAT.  Currently only supported for Gtk+-2.
+
+ * Gtk+-2: Pasting using the mouse is now supported.
+
+ * curses: Check that it is actually connected to a tty.
+
+ * Removed the old qt-3 and gtk+-1 pinentries.
+
+
+Noteworthy changes in version 0.8.4 (2014-09-18)
+------------------------------------------------
+
+ * New pinentry-tty version for dumb terminals.
+
+ * Qt4: New option to enable pasting the passphrase from clipboard
+
+ * Qt4: Improved accessiblity
+
+ * Qt4: Raise confirm message windows into foreground
+
+ * Qt4 (Windows): Improve the way pinentry-qt raises itself in the
+   foreground.
+
+ * Improved the build system.
+
+
 Noteworthy changes in version 0.8.3 (2013-04-26)
 ------------------------------------------------
 
@@ -79,7 +227,7 @@ Noteworthy changes in version 0.7.3 (2007-07-06)
  * New option --colors=FG,BG,SO to set the colors for the curses
    pinentry.
 
- * Pinentry-w32 does now basicaly work.  It needs some finishing
+ * Pinentry-w32 does now basically work.  It needs some finishing
    though.  For example the buttons should resize themself according
    to the size of the text.
 
