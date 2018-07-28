@@ -8,8 +8,25 @@
 #define GPG_ERR_ENABLE_ERRNO_MACROS 1
 
 
+
+#ifndef GNUPG_CONFIG_H_INCLUDED
+#define GNUPG_CONFIG_H_INCLUDED
+
+
 /* The GUI pinentries should fall back to curses if X is not available. */
 #undef FALLBACK_CURSES
+
+/* Nod nod */
+#undef GCR_API_SUBJECT_TO_CHANGE
+
+/* version of the libassuan library */
+#undef GNUPG_LIBASSUAN_VERSION
+
+/* Under WindowsCE we use the strerror replacement from libgpg-error. */
+#undef GPG_ERR_ENABLE_ERRNO_MACROS
+
+/* Under Windows we use the gettext code from libgpg-error */
+#undef GPG_ERR_ENABLE_GETTEXT_MACROS
 
 /* Defined if the mlock() call does not work */
 #undef HAVE_BROKEN_MLOCK
@@ -24,9 +41,6 @@
 /* Defined if the OS supports drive letters. */
 #undef HAVE_DRIVE_LETTERS
 
-/* Defined if GTK is available */
-#undef HAVE_GTK
-
 /* Define if you have the iconv() function. */
 #undef HAVE_ICONV
 
@@ -36,11 +50,11 @@
 /* Define to 1 if you have the <langinfo.h> header file. */
 #undef HAVE_LANGINFO_H
 
-/* Define if you have a working libpthread (will enable threaded code) */
-#undef HAVE_LIBPTHREAD
-
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
+
+/* The pinentries should optionally cache the passphrase using libsecret. */
+#undef HAVE_LIBSECRET
 
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
@@ -59,10 +73,6 @@
 
 /* Define to 1 if you have the `plock' function. */
 #undef HAVE_PLOCK
-
-/* Define to 1 if you have the <pthread/linuxthreads/pthread.h> header file.
-   */
-#undef HAVE_PTHREAD_LINUXTHREADS_PTHREAD_H
 
 /* Define to 1 if you have the `seteuid' function. */
 #undef HAVE_SETEUID
@@ -115,6 +125,9 @@
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
 
+/* The GUI pinentries should respect INSIDE_EMACS envvar. */
+#undef INSIDE_EMACS
+
 /* Name of package */
 #undef PACKAGE
 
@@ -139,14 +152,14 @@
 /* The Curses version of Pinentry is to be build */
 #undef PINENTRY_CURSES
 
-/* The GTK+ version of Pinentry is to be build */
-#undef PINENTRY_GTK
+/* The Emacs version of Pinentry is to be build */
+#undef PINENTRY_EMACS
 
-/* The Qt version of Pinentry is to be build */
+/* The qt version of Pinentry is to be build */
 #undef PINENTRY_QT
 
-/* The Qt4 version of Pinentry is to be build */
-#undef PINENTRY_QT4
+/* The TTY version of Pinentry is to be build */
+#undef PINENTRY_TTY
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
@@ -182,9 +195,6 @@
 /* Version number of package */
 #undef VERSION
 
-/* Define to 1 if the X Window System is missing or not being used. */
-#undef X_DISPLAY_MISSING
-
 /* Define to 1 if on MINIX. */
 #undef _MINIX
 
@@ -195,6 +205,23 @@
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
 
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT32_T
+
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint32_t
+
 
 #endif /*PINENTRY_CONFIG_H_INCLUDED*/
+
+
+
+#ifdef GPG_ERR_SOURCE_DEFAULT
+# error GPG_ERR_SOURCE_DEFAULT already defined
+#endif
+#define GPG_ERR_SOURCE_DEFAULT  GPG_ERR_SOURCE_PINENTRY
+#endif /*GNUPG_CONFIG_H_INCLUDED*/
 

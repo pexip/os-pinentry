@@ -1,5 +1,6 @@
 # Makefile.am
-# Copyright (C) 2002 g10 Code GmbH, Klar‰lvdalens Datakonsult AB
+# Copyright (C) 2002 g10 Code GmbH, Klar√§lvdalens Datakonsult AB
+# Copyright (C) 2008, 2015 g10 Code GmbH
 #
 # This file is part of PINENTRY.
 #
@@ -19,9 +20,10 @@
 
 ## Process this file with automake to produce Makefile.in
 
-EXTRA_DIST = Manifest README.SecQ
-
 bin_PROGRAMS = pinentry-qt
+
+EXTRA_DIST = document-encrypt.png pinentry.qrc
+
 
 if FALLBACK_CURSES
 ncurses_include = $(NCURSES_INCLUDE)
@@ -32,23 +34,25 @@ libcurses =
 endif
 
 
-AM_CPPFLAGS = -I$(top_srcdir)/assuan -I$(top_srcdir)/secmem $(QT_INCLUDES) $(ncurses_include) \
-	-I$(top_srcdir)/pinentry
-AM_CXXFLAGS = $(QT_CXXFLAGS)
-pinentry_qt_LDADD = $(QT_LIBS) $(libcurses) ../pinentry/libpinentry.a \
-	$(top_builddir)/assuan/libassuan.a \
-	$(top_builddir)/secmem/libsecmem.a $(LIBCAP)
-pinentry_qt_LDFLAGS = $(QT_LDFLAGS) $(QT_RPATH)
+AM_CPPFLAGS = $(COMMON_CFLAGS) \
+	-I$(top_srcdir) -I$(top_srcdir)/secmem \
+	$(ncurses_include) -I$(top_srcdir)/pinentry
+AM_CXXFLAGS = $(PINENTRY_QT_CFLAGS)
+pinentry_qt_LDADD = \
+	../pinentry/libpinentry.a $(top_builddir)/secmem/libsecmem.a \
+	$(COMMON_LIBS) $(PINENTRY_QT_LIBS) $(libcurses) $(LIBCAP)
 
-pinentry_qt_SOURCES = secqstring.h secqstring.cpp \
-	secqinternal_p.h secqinternal.cpp \
-	secqlineedit.h secqlineedit.cpp \
-	pinentrydialog.h pinentrydialog.cpp \
-	main.cpp 
-nodist_pinentry_qt_SOURCES = secqlineedit.moc.cpp \
-	pinentrydialog.moc.cpp
+BUILT_SOURCES = \
+	pinentryconfirm.moc pinentrydialog.moc
 
-DISTCLEANFILES = $(nodist_pinentry_qt_SOURCES)
+CLEANFILES = \
+	pinentryconfirm.moc pinentrydialog.moc
 
-%.moc.cpp: $(srcdir)/%.h
-	$(MOC) $< -o $@
+pinentry_qt_SOURCES = pinentrydialog.h pinentrydialog.cpp \
+	main.cpp qrc_pinentry.cpp pinentryconfirm.cpp pinentryconfirm.h
+
+nodist_pinentry_qt_SOURCES = \
+	pinentryconfirm.moc pinentrydialog.moc
+
+.h.moc:
+	$(MOC) `test -f '$<' || echo '$(srcdir)/'`$< -o $@

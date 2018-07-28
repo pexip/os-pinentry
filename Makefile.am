@@ -1,5 +1,5 @@
 # Makefile.am
-# Copyright (C) 2002, 2012 g10 Code GmbH
+# Copyright (C) 2002, 2012, 2015 g10 Code GmbH
 #
 # This file is part of PINENTRY.
 #
@@ -20,12 +20,11 @@
 ## Process this file with automake to produce Makefile.in
 
 ACLOCAL_AMFLAGS = -I m4
-AUTOMAKE_OPTIONS = dist-bzip2 no-dist-gzip
-#DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt4
+DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt
 
 GITLOG_TO_CHANGELOG=gitlog-to-changelog
 
-EXTRA_DIST = autogen.sh README.GIT ChangeLog-old \
+EXTRA_DIST = autogen.sh autogen.rc README.GIT ChangeLog-old \
 	     build-aux/gitlog-to-changelog \
 	     build-aux/git-log-fix build-aux/git-log-footer
 
@@ -35,10 +34,16 @@ else
 pinentry_curses =
 endif
 
-if BUILD_PINENTRY_GTK
-pinentry_gtk = gtk
+if BUILD_PINENTRY_TTY
+pinentry_tty = tty
 else
-pinentry_gtk =
+pinentry_tty =
+endif
+
+if BUILD_PINENTRY_EMACS
+pinentry_emacs = emacs
+else
+pinentry_emacs =
 endif
 
 if BUILD_PINENTRY_GTK_2
@@ -47,16 +52,16 @@ else
 pinentry_gtk_2 =
 endif
 
+if BUILD_PINENTRY_GNOME_3
+pinentry_gnome_3 = gnome3
+else
+pinentry_gnome_3 =
+endif
+
 if BUILD_PINENTRY_QT
 pinentry_qt = qt
 else
 pinentry_qt =
-endif
-
-if BUILD_PINENTRY_QT4
-pinentry_qt4 = qt4
-else
-pinentry_qt4 =
 endif
 
 if BUILD_PINENTRY_W32
@@ -65,9 +70,9 @@ else
 pinentry_w32 =
 endif
 
-SUBDIRS = assuan secmem pinentry ${pinentry_curses} \
-	${pinentry_gtk} ${pinentry_gtk_2} ${pinentry_qt} ${pinentry_qt4} \
-	${pinentry_w32} doc
+SUBDIRS = m4 secmem pinentry ${pinentry_curses} ${pinentry_tty} \
+	${pinentry_emacs} ${pinentry_gtk_2} ${pinentry_gnome_3} \
+	${pinentry_qt} ${pinentry_w32} doc
 
 
 install-exec-local:

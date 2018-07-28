@@ -1,8 +1,208 @@
-pinentry (0.8.3-2pexip1) pexip; urgency=medium
+pinentry (1.0.0-2pexip1) pexip; urgency=medium
 
   * Prepare Pexip packaging
 
  -- John-Mark Bell <jmb@pexip.com>  Fri, 27 Jul 2018 16:06:17 +0000
+
+pinentry (1.0.0-2) unstable; urgency=medium
+
+  * fix documentation typos (Closes: #665879)
+  * pinentry-gnome3: Ask for new passwords twice (Closes: #851277)
+  * normalize window title behavior across graphical variants
+  * pinentry-gtk-2: busy-wait while pointer is already grabbed (Closes: #850708)
+  * pinentry-gtk-2: retry input grab based on real time delay (Closes: #851707)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 06 Feb 2017 03:56:27 -0500
+
+pinentry (1.0.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * removed most patches, already imported upstream.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 05 Dec 2016 22:24:12 -0500
+
+pinentry (0.9.7-9) unstable; urgency=medium
+
+  * more upstream patches (pinentry-gnome3 now falls back to curses when
+    screen is locked)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 08 Nov 2016 14:02:47 -0600
+
+pinentry (0.9.7-8) unstable; urgency=medium
+
+  * more patches from upstream
+  * reduce work for the buildds by avoiding some duplicated builds.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Sat, 05 Nov 2016 23:28:59 -0400
+
+pinentry (0.9.7-7) unstable; urgency=medium
+
+  * update debian/watch to use https
+  * cleanup patches from upstream
+  * pinentry-gnome3: improve fallback to curses (Closes: #841909)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Fri, 04 Nov 2016 23:50:45 -0400
+
+pinentry (0.9.7-6) unstable; urgency=medium
+
+  * included several patches from upstream
+  * bumped to debhelper 10
+  * p-gnome3 Recommends: dbus-user-session (addresses: #801247)
+  * added texinfo to build-dependencies for /usr/bin/makeinfo
+  * added bindnow hardening flag
+  * bumped standards-version to 3.9.8 (no changes needed)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 11 Oct 2016 15:52:08 -0400
+
+pinentry (0.9.7-5) unstable; urgency=medium
+
+  * use https for Vcs-* fields
+  * bump standards-version to 3.9.7
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Sun, 21 Feb 2016 09:53:59 -0800
+
+pinentry (0.9.7-4) unstable; urgency=medium
+
+  * avoid pinentry failures when bound to libsecret and the secret service
+    is not running.  Thanks, Stef Walter.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Sat, 20 Feb 2016 14:36:43 -0500
+
+pinentry (0.9.7-3) unstable; urgency=medium
+
+  * build -tty, -curses, and -qt without libsecret (Closes: #787883)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 04 Feb 2016 18:13:01 -0500
+
+pinentry (0.9.7-2) unstable; urgency=medium
+
+  * avoid use-after-free in QT pw quality calculation (patch from upstream)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 04 Feb 2016 16:53:15 -0500
+
+pinentry (0.9.7-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 04 Jan 2016 10:44:50 -0500
+
+pinentry (0.9.6-4) unstable; urgency=medium
+
+  * make pinentry-qt use qt5 by default. (Closes: #802936)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Wed, 28 Oct 2015 14:22:02 -0400
+
+pinentry (0.9.6-3) unstable; urgency=medium
+
+  * added NEWS entry for pinentry-gtk2 (Closes: #801757)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 19 Oct 2015 20:40:16 -0400
+
+pinentry (0.9.6-2) unstable; urgency=medium
+
+  * dummy/transitional pinentry-qt4 package: update alternatives
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 05 Oct 2015 17:35:46 -0400
+
+pinentry (0.9.6-1) unstable; urgency=medium
+
+  * New upstream release
+  * fix pinentry-tty description typo (Closes: #798944)
+    Thanks, Yuri D'Elia
+  * introduce new pinentry-qt, which people should use instead of
+    pinentry-qt4.
+  * pinentry-qt4 is now a dummy transitional package.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 01 Oct 2015 19:04:24 -0700
+
+pinentry (0.9.5-4) unstable; urgency=medium
+
+  * use -std=gnu++11 for pinentry-qt4 (Closes: #795175)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 11 Aug 2015 13:03:19 -0400
+
+pinentry (0.9.5-3) unstable; urgency=medium
+
+  * added dependency from pinentry-gnome3 to gcr (Closes: #791379)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Wed, 05 Aug 2015 00:39:02 -0400
+
+pinentry (0.9.5-2) unstable; urgency=medium
+
+  * disable emacs and emacs-fallback until we get a better description of
+    them in the upstream documentation
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 07 Jul 2015 14:43:33 -0400
+
+pinentry (0.9.5-1) unstable; urgency=medium
+
+  * new upstream release
+  * build-depends on libgpg-error and libassuan now
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 02 Jul 2015 18:01:23 -0400
+
+pinentry (0.9.4-2) unstable; urgency=medium
+
+  * rely on user's choice of password-manager with pinentry-gnome3
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 09 Jun 2015 07:12:16 -0400
+
+pinentry (0.9.4-1) unstable; urgency=medium
+
+  * New upstream version (most d/patches applied upstream)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Fri, 05 Jun 2015 17:33:37 -0400
+
+pinentry (0.9.3-3) unstable; urgency=medium
+
+  * fix secmem buffer over-clearing (Closes: #787690)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 04 Jun 2015 23:48:26 -0400
+
+pinentry (0.9.3-2) unstable; urgency=medium
+
+  * fix pinentry-curses text entry (Closes: #787639)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Wed, 03 Jun 2015 13:25:16 -0400
+
+pinentry (0.9.3-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Help pinentry-qt4 show up above existing windows (Closes: #581617)
+  * add new pinentry-gnome3 package.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Mon, 01 Jun 2015 19:09:28 -0400
+
+pinentry (0.9.2-1) unstable; urgency=medium
+
+  [ Eric Dorland ]
+  * debian/rules: Install README.Debian in all packages instead of using
+    symlinks.
+
+  [ Daniel Kahn Gillmor ]
+  * new upstream version (Closes: #516489)
+  * add pinentry-tty package (Closes: #782888)
+  * debian/copyright: use DEP5
+  * use --enable-pinentry-qt4-clipboard (Closes: #637029)
+  * terminate politely if TTY vanishes (Closes: #559936)
+  * use dh-autoreconf
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Wed, 13 May 2015 11:45:38 -0400
+
+pinentry (0.9.1-1) experimental; urgency=medium
+
+  * New Upstream Release
+  * Bringing package under team maintenance, with Peter's agreement.
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Sun, 12 Apr 2015 15:29:35 -0400
+
+pinentry (0.9.0-0.1) experimental; urgency=medium
+
+  * Non-maintainer upload
+  * new upstream release (Closes: #765532)
+  * bumped Standards-Version to 3.9.6 (no changes needed)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 06 Nov 2014 17:53:20 -0500
 
 pinentry (0.8.3-2) unstable; urgency=medium
 

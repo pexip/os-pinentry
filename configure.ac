@@ -1,6 +1,6 @@
 # configure.ac
 # Copyright (C) 1999 Robert Bihlmeyer <robbe@orcus.priv.at>
-# Copyright (C) 2001, 2002, 2003, 2004, 2007 g10 Code GmbH
+# Copyright (C) 2001, 2002, 2003, 2004, 2007, 2015, 2016 g10 Code GmbH
 #
 # This file is part of PINENTRY.
 #
@@ -19,14 +19,14 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 # (Process this file with autoconf to produce a configure script.)
-AC_PREREQ(2.57)
-min_automake_version="1.10"
+AC_PREREQ(2.69)
+min_automake_version="1.14"
 
 # To build a release you need to create a tag with the version number
 # (git tag -s pinentry-n.m.k) and run "./autogen.sh --force".  Please
 # bump the version number immediately after the release, do another
 # commit, and a push so that the git magic is able to work.
-m4_define(mym4_version, [0.8.3])
+m4_define(mym4_version, [1.0.0])
 
 # Below is m4 magic to extract and compute the git revision number,
 # the decimalized short revision number, a beta version string and a
@@ -42,11 +42,12 @@ m4_define([mym4_betastring],
 m4_define([mym4_isgit],m4_if(mym4_betastring,[],[no],[yes]))
 m4_define([mym4_full_version],[mym4_version[]mym4_betastring])
 
-AC_INIT([pinentry],[mym4_full_version], [http://bugs.gnupg.org])
+AC_INIT([pinentry],[mym4_full_version], [https://bugs.gnupg.org])
 
+AC_CONFIG_AUX_DIR([build-aux])
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(pinentry/pinentry.h)
-AM_INIT_AUTOMAKE($PACKAGE_NAME, $PACKAGE_VERSION)
+AM_INIT_AUTOMAKE([serial-tests dist-bzip2 no-dist-gzip])
 
 AC_GNU_SOURCE
 
@@ -143,17 +144,73 @@ AM_CONDITIONAL(HAVE_W32CE_SYSTEM, test "$have_w32ce_system" = yes)
 
 dnl Checks for compiler features.
 if test "$GCC" = yes; then
-    CFLAGS="$CFLAGS -Wall -Wcast-align -Wshadow -Wstrict-prototypes"
+    # Check whether gcc does not emit a diagnositc for unknown -Wno-*
+    # options.  This is the case for gcc >= 4.6
+    AC_MSG_CHECKING([if gcc ignores unknown -Wno-* options])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 6 )
+#kickerror
+#endif]],[])],[_gcc_silent_wno=yes],[_gcc_silent_wno=no])
+    AC_MSG_RESULT($_gcc_silent_wno)
+
+    if test "$USE_MAINTAINER_MODE" = "yes"; then
+        CFLAGS="$CFLAGS -Wall -Wcast-align -Wshadow -Wstrict-prototypes"
+        CFLAGS="$CFLAGS -Wformat -Wno-format-y2k -Wformat-security"
+
+        if test x"$_gcc_silent_wno" = xyes ; then
+          _gcc_warn=yes
+        else
+          AC_MSG_CHECKING([if gcc supports -Wno-missing-field-initializers])
+          _gcc_cflags_save=$CFLAGS
+          CFLAGS="-Wno-missing-field-initializers"
+          AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],
+                            [_gcc_warn=yes],[_gcc_warn=no])
+          AC_MSG_RESULT($_gcc_warn)
+          CFLAGS=$_gcc_cflags_save;
+        fi
+        if test x"$_gcc_warn" = xyes ; then
+          CFLAGS="$CFLAGS -W -Wno-sign-compare -Wno-missing-field-initializers"
+        fi
+
+        AC_MSG_CHECKING([if gcc supports -Wdeclaration-after-statement])
+        _gcc_cflags_save=$CFLAGS
+        CFLAGS="-Wdeclaration-after-statement"
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],_gcc_warn=yes,_gcc_warn=no)
+        AC_MSG_RESULT($_gcc_warn)
+        CFLAGS=$_gcc_cflags_save;
+        if test x"$_gcc_warn" = xyes ; then
+          CFLAGS="$CFLAGS -Wdeclaration-after-statement"
+        fi
+
+    else
+        # Not in maintainer mode: Use standard warnings.
+        CFLAGS="$CFLAGS -Wall"
+    fi
+
     CPPFLAGS="$CPPFLAGS -Wall"
 
-    AC_MSG_CHECKING([if gcc supports -Wno-pointer-sign])
-    _gcc_cflags_save=$CFLAGS
-    CFLAGS="-Wno-pointer-sign"
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],_gcc_psign=yes,_gcc_psign=no)
-    AC_MSG_RESULT($_gcc_psign)
-    CFLAGS=$_gcc_cflags_save;
-    if test x"$_gcc_psign" = xyes ; then
+    if test x"$_gcc_silent_wno" = xyes ; then
+      _gcc_warn=yes
+    else
+      AC_MSG_CHECKING([if gcc supports -Wno-pointer-sign])
+      _gcc_cflags_save=$CFLAGS
+      CFLAGS="-Wno-pointer-sign"
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],[_gcc_warn=yes],[_gcc_warn=no])
+      AC_MSG_RESULT($_gcc_warn)
+      CFLAGS=$_gcc_cflags_save;
+    fi
+    if test x"$_gcc_warn" = xyes ; then
        CFLAGS="$CFLAGS -Wno-pointer-sign"
+    fi
+
+    AC_MSG_CHECKING([if gcc supports -Wpointer-arith])
+    _gcc_cflags_save=$CFLAGS
+    CFLAGS="-Wpointer-arith"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])],_gcc_warn=yes,_gcc_warn=no)
+    AC_MSG_RESULT($_gcc_warn)
+    CFLAGS=$_gcc_cflags_save;
+    if test x"$_gcc_warn" = xyes ; then
+       CFLAGS="$CFLAGS -Wpointer-arith"
     fi
 fi
 
@@ -166,8 +223,51 @@ dnl Checks for library functions.
 AC_CHECK_FUNCS(seteuid stpcpy mmap)
 GNUPG_CHECK_MLOCK
 
+dnl Checks for standard types.
+AC_TYPE_UINT32_T
+
+# Common libraries and cflags.
+COMMON_CFLAGS=
+COMMON_LIBS=
+AC_SUBST(COMMON_CFLAGS)
+AC_SUBST(COMMON_LIBS)
+
+dnl Checks for libgpg-error
+#
+# libgpg-error is a library with error codes shared between GnuPG
+# related projects.
+#
+NEED_GPG_ERROR_VERSION=1.16
+have_gpg_error=no
+
+AM_PATH_GPG_ERROR("$NEED_GPG_ERROR_VERSION",
+                  have_gpg_error=yes,have_gpg_error=no)
+COMMON_CFLAGS="$GPG_ERROR_CFLAGS $COMMON_CFLAGS"
+COMMON_LIBS="$GPG_ERROR_LIBS $COMMON_LIBS"
+
+AC_DEFINE_UNQUOTED(GPG_ERR_ENABLE_GETTEXT_MACROS, 1,
+                   [Under Windows we use the gettext code from libgpg-error])
+
+AC_DEFINE_UNQUOTED(GPG_ERR_ENABLE_ERRNO_MACROS, 1,
+                   [Under WindowsCE we use the strerror replacement from libgpg-error.])
+
+
 dnl Checks for libassuan.
-dnl -> None required becuase we use a stripped down version of libassuan.
+#
+# libassuan is used for IPC
+#
+NEED_LIBASSUAN_API=2
+NEED_LIBASSUAN_VERSION=2.1.0
+have_libassuan=no
+AM_PATH_LIBASSUAN("$NEED_LIBASSUAN_API:$NEED_LIBASSUAN_VERSION",
+                  have_libassuan=yes,have_libassuan=no)
+if test "$have_libassuan" = "yes"; then
+  AC_DEFINE_UNQUOTED(GNUPG_LIBASSUAN_VERSION, "$libassuan_version",
+                     [version of the libassuan library])
+fi
+
+COMMON_CFLAGS="$LIBASSUAN_CFLAGS $COMMON_CFLAGS"
+COMMON_LIBS="$LIBASSUAN_LIBS $COMMON_LIBS"
 
 
 dnl Checks for libsecmem.
@@ -236,55 +336,24 @@ fi
 
 
 dnl
-dnl Check for GTK+ pinentry program.
+dnl Check for tty pinentry program.
 dnl
-AC_ARG_ENABLE(pinentry-gtk,
-            AC_HELP_STRING([--enable-pinentry-gtk], [build GTK+ pinentry]),
-            pinentry_gtk=$enableval, pinentry_gtk=maybe)
+AC_ARG_ENABLE(pinentry-tty,
+            AC_HELP_STRING([--enable-pinentry-tty], [build tty pinentry]),
+            pinentry_tty=$enableval, pinentry_tty=maybe)
+AM_CONDITIONAL(BUILD_PINENTRY_TTY, test "$pinentry_tty" = "yes")
+
+if test "$pinentry_tty" = "yes"; then
+  AC_DEFINE(PINENTRY_TTY, 1,
+           [The TTY version of Pinentry is to be build])
+fi
+
 
 dnl
-dnl Checks for GTK+ libraries.  Deal correctly with $pinentry_gtk = maybe.
+dnl Additional checks pinentry Curses.
 dnl
-if test "$pinentry_gtk" != "no"; then
-AM_PATH_GLIB(1.2.0,,
-if test "$pinentry_gtk" = "yes"; then
-    AC_MSG_ERROR([[
-***
-*** GLIB 1.2.0 or newer is required. The latest version of GLIB
-*** is always available from ftp://ftp.gtk.org/.
-***]])
-else
-    pinentry_gtk=no
-fi)
-fi
-
-if test "$pinentry_gtk" != "no"; then
-AM_PATH_GTK(1.2.0,
-    AC_DEFINE(HAVE_GTK, 1, [Defined if GTK is available]),
-if test "$pinentry_gtk" = "yes"; then
-    AC_MSG_ERROR([[
-***
-*** GTK+ 1.2.0 or newer is required. The latest version of GTK+
-*** is always available form ftp://ftp.gtk.org/.
-***]])
-else
-    pinentry_gtk=no
-fi)
-fi
-
-dnl If we have come so far, GTK+ pinentry can be build.
-if test "$pinentry_gtk" != "no"; then
-    pinentry_gtk=yes
-fi
-AM_CONDITIONAL(BUILD_PINENTRY_GTK, test "$pinentry_gtk" = "yes")
-if test "$pinentry_gtk" = "yes"; then
-  AC_DEFINE(PINENTRY_GTK, 1, [The GTK+ version of Pinentry is to be build])
-fi
-
 if test "$pinentry_curses" = "yes" \
-        -o "$fallback_curses" = "yes" \
-        -o "$pinentry_gtk" = "yes"; then
-  dnl Additional checks pinentry Curses/GTK+.
+        -o "$fallback_curses" = "yes" ; then
   AM_ICONV
   if test "$am_cv_func_iconv" != "yes"; then
     AC_MSG_ERROR([[
@@ -295,24 +364,76 @@ if test "$pinentry_curses" = "yes" \
   fi
 fi
 
-dnl if test "$pinentry_gtk" = "yes"; then
-dnl Additional checks for GTK+ pinentry.
-dnl End of additional checks for GTK+ pinentry.
-dnl fi
+dnl
+dnl Check for emacs pinentry program.
+dnl
+AC_ARG_ENABLE(pinentry-emacs,
+            AC_HELP_STRING([--enable-pinentry-emacs], [build emacs pinentry]),
+            pinentry_emacs=$enableval, pinentry_emacs=no)
+AC_ARG_ENABLE(inside-emacs,
+            AC_HELP_STRING([--enable-inside-emacs], [include emacs hack]),
+            inside_emacs=$enableval, inside_emacs=maybe)
+
+if test "$pinentry_emacs" != "no" -o "$inside_emacs" != "no"; then
+  AC_MSG_CHECKING([if Unix domain socket is supported])
+  AC_TRY_COMPILE([
+#include <sys/socket.h>
+#include <sys/un.h>
+],
+	         [int s = socket (AF_UNIX, SOCK_STREAM, 0);],
+		 [_unixsock_works=yes],
+		 [_unixsock_works=no])
+  AC_MSG_RESULT($_unixsock_works)
+  if test "$_unixsock_works" = "yes"; then
+    if test "$pinentry_emacs" != "no"; then
+      pinentry_emacs=yes
+    fi
+    if test "$inside_emacs" != "no"; then
+      inside_emacs=yes
+      AC_DEFINE(INSIDE_EMACS, 1,
+                [The GUI pinentries should respect INSIDE_EMACS envvar.])
+    fi
+  else
+    if test "$pinentry_emacs" = "yes" -o "$inside_emacs" = "yes"; then
+      AC_MSG_ERROR([[
+***
+*** Support for Unix domain sockets is required.
+***]])
+    fi
+    pinentry_emacs=no
+    inside_emacs=no
+  fi
+fi
+
+AM_CONDITIONAL(BUILD_LIBPINENTRY_EMACS,
+              test "$pinentry_emacs" = "yes" -o "$inside_emacs" = "yes")
+AM_CONDITIONAL(BUILD_PINENTRY_EMACS, test "$pinentry_emacs" = "yes")
+AM_CONDITIONAL(INSIDE_EMACS, test "$inside_emacs" = "yes")
+
+if test "$pinentry_emacs" = "yes"; then
+  AC_DEFINE(PINENTRY_EMACS, 1,
+            [The Emacs version of Pinentry is to be build])
+fi
+
 
 
 dnl
-dnl Check for GTK+-2 pinentry program.
+dnl Check for GTK+-2 / GNOME3 pinentry programs.
 dnl
 AC_ARG_ENABLE(pinentry-gtk2,
             AC_HELP_STRING([--enable-pinentry-gtk2], [build GTK+-2 pinentry]),
             pinentry_gtk_2=$enableval, pinentry_gtk_2=maybe)
 
+AC_ARG_ENABLE(pinentry-gnome3,
+            AC_HELP_STRING([--enable-pinentry-gnome3], [build GNOME 3 pinentry]),
+            pinentry_gnome_3=$enableval, pinentry_gnome_3=maybe)
+
 dnl check for pkg-config
-if test "$pinentry_gtk_2" != "no"; then
+if test "$pinentry_gtk_2" != "no" -o "$pinentry_gnome_3" != "no"; then
         AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
 	if test x"${PKG_CONFIG}" = xno ; then
 		pinentry_gtk_2=no
+		pinentry_gnome_3=no
 	fi
 fi
 
@@ -338,120 +459,126 @@ if test "$pinentry_gtk_2" != "no"; then
 			GTK2LIBS=`"${PKG_CONFIG}" --libs gtk+-2.0`
 			AC_SUBST(GTK2CFLAGS)
 			AC_SUBST(GTK2LIBS)
-			pinentry_gtk_2=yes
+			if test "$pinentry_gtk_2" != "no"
+			then
+			  pinentry_gtk_2=yes
+			fi
 		fi
 	fi
 fi
 AM_CONDITIONAL(BUILD_PINENTRY_GTK_2, test "$pinentry_gtk_2" = "yes")
 
+if test "$pinentry_gnome_3" != "no"; then
+	AC_MSG_CHECKING([for gcr])
+	"${PKG_CONFIG}" --exists gcr-base-3
+	if test $? -ne 0 ; then
+		AC_MSG_RESULT([no])
+		AC_MSG_WARN([pkg-config could not find the module gcr-base-3])
+		pinentry_gnome_3=no
+	else
+		AC_MSG_RESULT([yes])
+		GNOME3CFLAGS=`"${PKG_CONFIG}" --cflags gcr-base-3`
+		GNOME3LIBS=`"${PKG_CONFIG}" --libs gcr-base-3`
+		AC_SUBST(GNOME3CFLAGS)
+		AC_SUBST(GNOME3LIBS)
+		AC_DEFINE(GCR_API_SUBJECT_TO_CHANGE, 1, [Nod nod])
+		pinentry_gnome_3=yes
+	fi
+fi
+
+AM_CONDITIONAL(BUILD_PINENTRY_GNOME_3, test "$pinentry_gnome_3" = "yes")
+
+dnl
+dnl Check for libsecret.
+dnl
+AC_ARG_ENABLE(libsecret,
+            AC_HELP_STRING([--enable-libsecret],
+	    [optionally cache passphrases using libsecret]),
+            libsecret=$enableval, libsecret=maybe)
+
+dnl check for pkg-config
+if test "$libsecret" != "no" -o "$pinentry-qt" != "no"; then
+        AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
+  if test x"${PKG_CONFIG}" = xno ; then
+    if test "$pinentry_qt" = "yes"; then
+      AC_MSG_ERROR([[
+                    ***
+                    *** pkg-config is required to find the Qt libraries for pinentry-qt
+                    ***]])
+    else
+      pinentry_qt=no
+    fi
+    libsecret=no
+  fi
+fi
+
+dnl check if the module libsecret exists
+if test "$libsecret" != "no"; then
+	AC_MSG_CHECKING([for libsecret])
+	"${PKG_CONFIG}" --exists 'libsecret-1'
+	if test $? -ne 0 ; then
+		AC_MSG_RESULT([no])
+		AC_MSG_WARN([pkg-config could not find the modules libsecret-1])
+		libsecret=no
+	else
+		AC_MSG_RESULT([yes])
+		LIBSECRET_CFLAGS=`"${PKG_CONFIG}" --cflags 'libsecret-1'`
+		LIBSECRET_LIBS=`"${PKG_CONFIG}" --libs 'libsecret-1'`
+		libsecret=yes
+	fi
+fi
+AM_CONDITIONAL(BUILD_WITH_LIBSECRET, test "$libsecret" = "yes")
+if test "$libsecret" = "yes"; then
+  AC_DEFINE(HAVE_LIBSECRET, 1,
+    [The pinentries should optionally cache the passphrase using libsecret.])
+
+  COMMON_CFLAGS="$LIBSECRET_CFLAGS $COMMON_CFLAGS"
+  COMMON_LIBS="$LIBSECRET_LIBS $COMMON_LIBS"
+fi
 
 dnl
 dnl Check for Qt pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-qt,
-            AC_HELP_STRING([--enable-pinentry-qt], [build Qt pinentry]),
+            AC_HELP_STRING([--enable-pinentry-qt], [build qt pinentry]),
             pinentry_qt=$enableval, pinentry_qt=maybe)
+
+
 dnl
-dnl Checks for Qt libraries.  Deal correctly with $pinentry_qt = maybe.
+dnl Checks for qt libraries.  Deal correctly with $pinentry_qt = maybe.
+dnl Tries to find Qt5, falls back on Qt4
 dnl
 if test "$pinentry_qt" != "no"; then
-QT_CHECK_COMPILERS
-QT_PATH
-if test $have_qt = "no"; then
-	if test $pinentry_qt = "yes"; then
-	  AC_MSG_ERROR([[
-***
-*** Qt ($qt_minversion) $ac_qt_notfound not found. Please check your
-*** installation!  For more details about this problem, look at the
-*** end of config.log.$missing_qt_mt
-***]])
-	else
-	  pinentry_qt="no"
-	fi
-fi
-if test $have_moc = "no"; then
-	if test $pinentry_qt = "yes"; then
+  FIND_QT
+  if test "$have_qt4_libs" != "yes" -a "$have_qt5_libs" != "yes"; then
+    if test "$pinentry_qt" = "yes"; then
         AC_MSG_ERROR([[
-***
-*** No Qt meta object compiler (moc) found!
-*** Please check whether you installed Qt correctly.
-*** You need to have a running moc binary.
-*** configure tried to run $ac_cv_path_moc and the test didn't
-*** succeed. If configure shouldn't have tried this one, set
-*** the environment variable MOC to the right one before running
-*** configure.
-***]])
-	else
-	  pinentry_qt="no"
-	fi
-fi
+    ***
+    *** Qt4 (QtCore, QtGui) or Qt5 (Qt5Core, Qt5Gui, Qt5Widgets) is required.
+    ***]])
+    else
+        pinentry_qt=no
+    fi
+  fi
 fi
 
-dnl If we have come so far, Qt pinentry can probably be build.
+AC_SUBST(PINENTRY_QT_CFLAGS)
+AC_SUBST(PINENTRY_QT_LIBS)
+AC_SUBST(MOC)
+
+dnl If we have come so far, qt pinentry can be build.
 if test "$pinentry_qt" != "no"; then
     pinentry_qt=yes
 fi
 AM_CONDITIONAL(BUILD_PINENTRY_QT, test "$pinentry_qt" = "yes")
-
 if test "$pinentry_qt" = "yes"; then
-  AC_DEFINE(PINENTRY_QT, 1, [The Qt version of Pinentry is to be build])
+  AC_DEFINE(PINENTRY_QT, 1, [The qt version of Pinentry is to be build])
+  if test "$have_qt4_libs" = "yes"; then
+    pinentry_qt_lib_version="(Qt4)"
+  else
+    pinentry_qt_lib_version="(Qt5)"
+  fi
 fi
-
-dnl if test "$pinentry_qt" = "yes"; then
-dnl dnl Additional checks for Qt pinentry.
-dnl dnl End of checks for Qt pinentry.
-dnl fi
-
-
-dnl
-dnl Check for Qt4 pinentry program.
-dnl
-AC_ARG_ENABLE(pinentry-qt4,
-            AC_HELP_STRING([--enable-pinentry-qt4], [build Qt4 pinentry]),
-            pinentry_qt4=$enableval, pinentry_qt4=maybe)
-
-
-dnl
-dnl Checks for Qt4 libraries.  Deal correctly with $pinentry_qt4 = maybe.
-dnl
-if test "$pinentry_qt4" != "no"; then
-PKG_CHECK_MODULES(QT4_CORE, QtCore,,
-if test "$pinentry_qt4" = "yes"; then
-    AC_MSG_ERROR([[
-***
-*** Qt4 Core is required.
-***]])
-else
-    pinentry_qt4=no
-fi)
-fi
-
-if test "$pinentry_qt4" != "no"; then
-PKG_CHECK_MODULES(QT4_GUI, QtGui,,
-if test "$pinentry_qt4" = "yes"; then
-    AC_MSG_ERROR([[
-***
-*** Qt4 Gui is required.
-***]])
-else
-    pinentry_qt4=no
-fi)
-fi
-
-dnl If we have come so far, Qt4 pinentry can be build.
-if test "$pinentry_qt4" != "no"; then
-    pinentry_qt4=yes
-fi
-AM_CONDITIONAL(BUILD_PINENTRY_QT4, test "$pinentry_qt4" = "yes")
-if test "$pinentry_qt4" = "yes"; then
-  AC_DEFINE(PINENTRY_QT4, 1, [The Qt4 version of Pinentry is to be build])
-fi
-
-dnl if test "$pinentry_qt4" = "yes"; then
-dnl Additional checks for Qt4 pinentry.
-dnl End of additional checks for Qt4 pinentry.
-dnl fi
-
 
 #
 # Check whether we should build the W32 pinentry.  This is actually
@@ -467,19 +594,19 @@ AM_CONDITIONAL(BUILD_PINENTRY_W32, test "$pinentry_w32" = "yes")
 # pinentry really is better (more feature-complete and more secure).
 
 if test "$pinentry_gtk_2" = "yes"; then
-   PINENTRY_DEFAULT=pinentry-gtk-2
+  PINENTRY_DEFAULT=pinentry-gtk-2
 else
-  if test "$pinentry_gtk" = "yes"; then
-    PINENTRY_DEFAULT=pinentry-gtk
+  if test "$pinentry_qt" = "yes"; then
+    PINENTRY_DEFAULT=pinentry-qt
   else
-    if test "$pinentry_qt" = "yes"; then
-      PINENTRY_DEFAULT=pinentry-qt
+    if test "$pinentry_gnome_3" = "yes"; then
+      PINENTRY_DEFAULT=pinentry-gnome3
     else
-      if test "$pinentry_qt4" = "yes"; then
-        PINENTRY_DEFAULT=pinentry-qt4
+      if test "$pinentry_curses" = "yes"; then
+        PINENTRY_DEFAULT=pinentry-curses
       else
-        if test "$pinentry_curses" = "yes"; then
-          PINENTRY_DEFAULT=pinentry-curses
+        if test "$pinentry_tty" = "yes"; then
+          PINENTRY_DEFAULT=pinentry-tty
         else
           if test "$pinentry_w32" = "yes"; then
             PINENTRY_DEFAULT=pinentry-w32
@@ -493,16 +620,75 @@ else
 fi
 AC_SUBST(PINENTRY_DEFAULT)
 
+#
+# Print errors here so that they are visible all
+# together and the user can acquire them all together.
+#
+die=no
+if test "$have_gpg_error" = "no"; then
+   die=yes
+   AC_MSG_NOTICE([[
+***
+*** You need libgpg-error to build this program.
+**  This library is for example available at
+***   ftp://ftp.gnupg.org/gcrypt/libgpg-error
+*** (at least version $NEED_GPG_ERROR_VERSION is required.)
+***]])
+fi
+
+if test "$have_libassuan" = "no"; then
+   die=yes
+   AC_MSG_NOTICE([[
+***
+*** You need libassuan to build this program.
+*** This library is for example available at
+***   ftp://ftp.gnupg.org/gcrypt/libassuan/
+*** (at least version $NEED_LIBASSUAN_VERSION (API $NEED_LIBASSUAN_API) is required).
+***]])
+fi
+
+if test "$die" = "yes"; then
+    AC_MSG_ERROR([[
+***
+*** Required libraries not found. Please consult the above messages
+*** and install them before running configure again.
+***]])
+fi
+
+
+
+#
+# To avoid double inclusion of config.h which might happen at some
+# places, we add the usual double inclusion protection at the top of
+# config.h.
+#
+AH_TOP([
+#ifndef GNUPG_CONFIG_H_INCLUDED
+#define GNUPG_CONFIG_H_INCLUDED
+])
+
+#
+# Stuff which goes at the bottom of config.h.
+#
+AH_BOTTOM([
+#ifdef GPG_ERR_SOURCE_DEFAULT
+# error GPG_ERR_SOURCE_DEFAULT already defined
+#endif
+#define GPG_ERR_SOURCE_DEFAULT  GPG_ERR_SOURCE_PINENTRY
+#endif /*GNUPG_CONFIG_H_INCLUDED*/
+])
+
 
 AC_CONFIG_FILES([
-assuan/Makefile
+m4/Makefile
 secmem/Makefile
 pinentry/Makefile
 curses/Makefile
-gtk/Makefile
+tty/Makefile
+emacs/Makefile
 gtk+-2/Makefile
+gnome3/Makefile
 qt/Makefile
-qt4/Makefile
 w32/Makefile
 doc/Makefile
 Makefile
@@ -518,13 +704,17 @@ AC_MSG_NOTICE([
 	Platform:  $host
 
 	Curses Pinentry ..: $pinentry_curses
-	GTK+ Pinentry ....: $pinentry_gtk
+	TTY Pinentry .....: $pinentry_tty
+	Emacs Pinentry ...: $pinentry_emacs
 	GTK+-2 Pinentry ..: $pinentry_gtk_2
-	Qt Pinentry ......: $pinentry_qt
-	Qt4 Pinentry .....: $pinentry_qt4
+	GNOME 3 Pinentry .: $pinentry_gnome_3
+	Qt Pinentry ......: $pinentry_qt $pinentry_qt_lib_version
 	W32 Pinentry .....: $pinentry_w32
 
 	Fallback to Curses: $fallback_curses
+	Emacs integration : $inside_emacs
+
+	libsecret ........: $libsecret
 
 	Default Pinentry .: $PINENTRY_DEFAULT
 ])

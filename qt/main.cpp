@@ -1,240 +1,355 @@
-/* main.cpp - Secure KDE dialog for PIN entry.
-   Copyright (C) 2002 Klar�lvdalens Datakonsult AB
+/* main.cpp - A Qt dialog for PIN entry.
+
+   Copyright (C) 2002, 2008 Klarälvdalens Datakonsult AB (KDAB)
    Copyright (C) 2003 g10 Code GmbH
+   Copyright 2007 Ingo Klöcker
+
    Written by Steffen Hansen <steffen@klaralvdalens-datakonsult.se>.
    Modified by Marcus Brinkmann <marcus@g10code.de>.
-   
+   Modified by Marc Mutz <marc@kdab.com>
+
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
    published by the Free Software Foundation; either version 2 of the
    License, or (at your option) any later version.
- 
+
    This program is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
    General Public License for more details.
- 
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA  */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+*/
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include "pinentryconfirm.h"
+#include "pinentrydialog.h"
+#include "pinentry.h"
+
+#include <qapplication.h>
+#include <QIcon>
+#include <QString>
+#include <qwidget.h>
+#include <qmessagebox.h>
+#include <QPushButton>
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 
-#include <qapplication.h>
-#include <qwidget.h>
-#include <qmessagebox.h>
-#include "secqstring.h"
-
-#include "pinentrydialog.h"
-
-#include "pinentry.h"
+#include <memory>
+#include <stdexcept>
+#include <gpg-error.h>
 
 #ifdef FALLBACK_CURSES
 #include <pinentry-curses.h>
 #endif
 
-static QString escape_accel( const QString & s ) {
+#if QT_VERSION >= 0x050000 && defined(QT_STATIC)
+  #include <QtPlugin>
+  #ifdef Q_OS_WIN
+    #include <windows.h>
+    #include <shlobj.h>
+    Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+  #elif defined(Q_OS_MAC)
+    Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
+  #else
+    Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
+  #endif
+#endif
 
-  QString result;
-  result.reserve( 2 * s.length());
+static QString escape_accel(const QString &s)
+{
 
-  bool afterUnderscore = false;
+    QString result;
+    result.reserve(s.size());
 
-  for ( unsigned int i = 0, end = s.length() ; i != end ; ++i ) {
-    const QChar ch = s[i];
-    if ( ch == QChar ( '_' ) )
-      {
-        if ( afterUnderscore ) // escaped _
-          {
-            result += QChar ( '_' );
+    bool afterUnderscore = false;
+
+    for (unsigned int i = 0, end = s.size() ; i != end ; ++i) {
+        const QChar ch = s[i];
+        if (ch == QLatin1Char('_')) {
+            if (afterUnderscore) { // escaped _
+                result += QLatin1Char('_');
+                afterUnderscore = false;
+            } else { // accel
+                afterUnderscore = true;
+            }
+        } else {
+            if (afterUnderscore ||  // accel
+                    ch == QLatin1Char('&')) {  // escape & from being interpreted by Qt
+                result += QLatin1Char('&');
+            }
+            result += ch;
             afterUnderscore = false;
-          }
-        else // accel
-          {
-            afterUnderscore = true;
-          }
-      }
-    else
-      {
-        if ( afterUnderscore || // accel
-             ch == QChar ( '&' ) ) // escape & from being interpreted by Qt
-          result += QChar ( '&' );
-        result += ch;
-        afterUnderscore = false;
-      }
-  }
+        }
+    }
 
-  if ( afterUnderscore )
-    // trailing single underscore: shouldn't happen, but deal with it robustly:
-    result += QChar ( '_' );
+    if (afterUnderscore)
+        // trailing single underscore: shouldn't happen, but deal with it robustly:
+    {
+        result += QLatin1Char('_');
+    }
 
-  return result;
+    return result;
 }
-
 
 /* Hack for creating a QWidget with a "foreign" window ID */
 class ForeignWidget : public QWidget
 {
 public:
-  ForeignWidget( WId wid ) : QWidget( 0 )
-  {
-    QWidget::destroy();
-    create( wid, false, false );
-  }
- 
-  ~ForeignWidget()
-  {
-    destroy( false, false );
-  }
+    explicit ForeignWidget(WId wid) : QWidget(0)
+    {
+        QWidget::destroy();
+        create(wid, false, false);
+    }
+
+    ~ForeignWidget()
+    {
+        destroy(false, false);
+    }
 };
 
-static int
-qt_cmd_handler (pinentry_t pe)
+namespace
 {
-  QWidget *parent = 0;
+class InvalidUtf8 : public std::invalid_argument
+{
+public:
+    InvalidUtf8() : std::invalid_argument("invalid utf8") {}
+    ~InvalidUtf8() throw() {}
+};
+}
 
-  int want_pass = !!pe->pin;
+static const bool GPG_AGENT_IS_PORTED_TO_ONLY_SEND_UTF8 = false;
 
-  if (want_pass)
-    {
-      /* FIXME: Add parent window ID to pinentry and GTK.  */
-      if (pe->parent_wid)
-	parent = new ForeignWidget (pe->parent_wid);
-
-      PinEntryDialog pinentry (parent, NULL, true, !!pe->quality_bar);
-
-      pinentry.setPinentryInfo (pe);
-      pinentry.setPrompt (QString::fromUtf8 (pe->prompt));
-      pinentry.setDescription (QString::fromUtf8 (pe->description));
-      /* If we reuse the same dialog window.  */
-#if 0
-      pinentry.setText (SecQString::null);
-#endif
-
-      if (pe->ok)
-	pinentry.setOkText (escape_accel (QString::fromUtf8 (pe->ok)));
-      else if (pe->default_ok)
-	pinentry.setOkText (escape_accel (QString::fromUtf8 (pe->default_ok)));
-
-      if (pe->cancel)
-	pinentry.setCancelText (escape_accel (QString::fromUtf8 (pe->cancel)));
-      else if (pe->default_cancel)
-	pinentry.setCancelText
-          (escape_accel (QString::fromUtf8 (pe->default_cancel)));
-
-      if (pe->error)
-	pinentry.setError (QString::fromUtf8 (pe->error));
-      if (pe->quality_bar)
-	pinentry.setQualityBar (QString::fromUtf8 (pe->quality_bar));
-      if (pe->quality_bar_tt)
-	pinentry.setQualityBarTT (QString::fromUtf8 (pe->quality_bar_tt));
-
-      bool ret = pinentry.exec ();
-      if (!ret)
-	return -1;
-
-      char *pin = (char *) pinentry.text().utf8();
-      if (!pin)
-	return -1;
-
-      int len = strlen (pin);
-      if (len >= 0)
-	{
-	  pinentry_setbufferlen (pe, len + 1);
-	  if (pe->pin)
-	    {
-	      strcpy (pe->pin, pin);
-	      ::secmem_free (pin);
-	      return len;
-	    }
-	}
-      ::secmem_free (pin);
-      return -1;
+static QString from_utf8(const char *s)
+{
+    const QString result = QString::fromUtf8(s);
+    if (result.contains(QChar::ReplacementCharacter)) {
+        if (GPG_AGENT_IS_PORTED_TO_ONLY_SEND_UTF8) {
+            throw InvalidUtf8();
+        } else {
+            return QString::fromLocal8Bit(s);
+        }
     }
-  else
-    {
-      QString desc = QString::fromUtf8 (pe->description? pe->description : "");
-      QString ok   = escape_accel
-        (QString::fromUtf8 (pe->ok ? pe->ok :
-                            pe->default_ok ? pe->default_ok : "&OK"));
-      QString can  = escape_accel
-        (QString::fromUtf8 (pe->cancel ? pe->cancel :
-                            pe->default_cancel? pe->default_cancel: "&Cancel"));
-      bool ret;
-      
-      ret = QMessageBox::information (parent, "", desc, ok, can );
-      
-      return !ret;
+
+    return result;
+}
+
+static int
+qt_cmd_handler(pinentry_t pe)
+{
+    QWidget *parent = 0;
+
+    /* FIXME: Add parent window ID to pinentry and GTK.  */
+    if (pe->parent_wid) {
+        parent = new ForeignWidget((WId) pe->parent_wid);
+    }
+
+    int want_pass = !!pe->pin;
+
+    const QString ok =
+        pe->ok             ? escape_accel(from_utf8(pe->ok)) :
+        pe->default_ok     ? escape_accel(from_utf8(pe->default_ok)) :
+        /* else */           QLatin1String("&OK") ;
+    const QString cancel =
+        pe->cancel         ? escape_accel(from_utf8(pe->cancel)) :
+        pe->default_cancel ? escape_accel(from_utf8(pe->default_cancel)) :
+        /* else */           QLatin1String("&Cancel") ;
+    const QString title =
+        pe->title ? from_utf8(pe->title) :
+        /* else */  QLatin1String("pinentry-qt") ;
+    const QString repeatError =
+        pe->repeat_error_string ? from_utf8(pe->repeat_error_string) :
+                                  QLatin1String("Passphrases do not match");
+    const QString repeatString =
+        pe->repeat_passphrase ? from_utf8(pe->repeat_passphrase) :
+                                QString();
+    const QString visibilityTT =
+        pe->default_tt_visi ? from_utf8(pe->default_tt_visi) :
+                              QLatin1String("Show passphrase");
+    const QString hideTT =
+        pe->default_tt_hide ? from_utf8(pe->default_tt_hide) :
+                              QLatin1String("Hide passphrase");
+
+
+    if (want_pass) {
+        PinEntryDialog pinentry(parent, 0, pe->timeout, true, !!pe->quality_bar,
+                                repeatString, visibilityTT, hideTT);
+
+        pinentry.setPinentryInfo(pe);
+        pinentry.setPrompt(escape_accel(from_utf8(pe->prompt)));
+        pinentry.setDescription(from_utf8(pe->description));
+        pinentry.setRepeatErrorText(repeatError);
+        if (pe->title) {
+            pinentry.setWindowTitle(from_utf8(pe->title));
+        }
+
+        /* If we reuse the same dialog window.  */
+        pinentry.setPin(QString());
+
+        pinentry.setOkText(ok);
+        pinentry.setCancelText(cancel);
+        if (pe->error) {
+            pinentry.setError(from_utf8(pe->error));
+        }
+        if (pe->quality_bar) {
+            pinentry.setQualityBar(from_utf8(pe->quality_bar));
+        }
+        if (pe->quality_bar_tt) {
+            pinentry.setQualityBarTT(from_utf8(pe->quality_bar_tt));
+        }
+        bool ret = pinentry.exec();
+        if (!ret) {
+            if (pinentry.timedOut())
+                pe->specific_err = gpg_error (GPG_ERR_TIMEOUT);
+            return -1;
+        }
+
+        const QString pinStr = pinentry.pin();
+        QByteArray pin = pinStr.toUtf8();
+
+        if (!!pe->repeat_passphrase) {
+            /* Should not have been possible to accept
+               the dialog in that case but we do a safety
+               check here */
+            pe->repeat_okay = (pinStr == pinentry.repeatedPin());
+        }
+
+        int len = strlen(pin.constData());
+        if (len >= 0) {
+            pinentry_setbufferlen(pe, len + 1);
+            if (pe->pin) {
+                strcpy(pe->pin, pin.constData());
+                return len;
+            }
+        }
+        return -1;
+    } else {
+        const QString desc  = pe->description ? from_utf8(pe->description) : QString();
+        const QString notok = pe->notok       ? escape_accel(from_utf8(pe->notok)) : QString();
+
+        const QMessageBox::StandardButtons buttons =
+            pe->one_button ? QMessageBox::Ok :
+            pe->notok      ? QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel :
+            /* else */       QMessageBox::Ok | QMessageBox::Cancel ;
+
+        PinentryConfirm box(QMessageBox::Information, pe->timeout, title, desc, buttons, parent);
+
+        const struct {
+            QMessageBox::StandardButton button;
+            QString label;
+        } buttonLabels[] = {
+            { QMessageBox::Ok,     ok     },
+            { QMessageBox::Yes,    ok     },
+            { QMessageBox::No,     notok  },
+            { QMessageBox::Cancel, cancel },
+        };
+
+        for (size_t i = 0 ; i < sizeof buttonLabels / sizeof * buttonLabels ; ++i)
+            if ((buttons & buttonLabels[i].button) && !buttonLabels[i].label.isEmpty()) {
+                box.button(buttonLabels[i].button)->setText(buttonLabels[i].label);
+#ifndef QT_NO_ACCESSIBILITY
+                box.button(buttonLabels[i].button)->setAccessibleDescription(buttonLabels[i].label);
+#endif
+            }
+
+        box.setIconPixmap(icon());
+
+        if (!pe->one_button) {
+            box.setDefaultButton(QMessageBox::Cancel);
+        }
+
+        box.show();
+        raiseWindow(&box);
+
+        const int rc = box.exec();
+
+        if (rc == QMessageBox::Cancel) {
+            pe->canceled = true;
+        }
+        if (box.timedOut()) {
+          pe->specific_err = gpg_error (GPG_ERR_TIMEOUT);
+        }
+
+        return rc == QMessageBox::Ok || rc == QMessageBox::Yes ;
+
     }
 }
 
-pinentry_cmd_handler_t pinentry_cmd_handler = qt_cmd_handler;
-
-int 
-main (int argc, char *argv[])
+static int
+qt_cmd_handler_ex(pinentry_t pe)
 {
-  pinentry_init ("pinentry-qt");
+    try {
+        return qt_cmd_handler(pe);
+    } catch (const InvalidUtf8 &) {
+        pe->locale_err = true;
+        return pe->pin ? -1 : false ;
+    } catch (...) {
+        pe->canceled = true;
+        return pe->pin ? -1 : false ;
+    }
+}
+
+pinentry_cmd_handler_t pinentry_cmd_handler = qt_cmd_handler_ex;
+
+int
+main(int argc, char *argv[])
+{
+    pinentry_init("pinentry-qt");
+
+    std::auto_ptr<QApplication> app;
 
 #ifdef FALLBACK_CURSES
-  if (!pinentry_have_display (argc, argv))
-    pinentry_cmd_handler = curses_cmd_handler;
-  else
+    if (!pinentry_have_display(argc, argv)) {
+        pinentry_cmd_handler = curses_cmd_handler;
+    } else
 #endif
     {
-      /* Qt does only understand -display but not --display; thus we
-         are fixing that here.  The code is pretty simply and may get
-         confused if an argument is called "--display". */
-      char **new_argv, *p;
-      size_t n;
-      int i, done;
+        /* Qt does only understand -display but not --display; thus we
+           are fixing that here.  The code is pretty simply and may get
+           confused if an argument is called "--display". */
+        char **new_argv, *p;
+        size_t n;
+        int i, done;
 
-      for (n=0,i=0; i < argc; i++)
-        n += strlen (argv[i])+1;
-      n++;
-      new_argv = (char**)calloc (argc+1, sizeof *new_argv);
-      if (new_argv)
-        *new_argv = (char*)malloc (n);
-      if (!new_argv || !*new_argv)
-        {
-          fprintf (stderr, "pinentry-qt: can't fixup argument list: %s\n",
-                   strerror (errno));
-          exit (EXIT_FAILURE);
-          
+        for (n = 0, i = 0; i < argc; i++) {
+            n += strlen(argv[i]) + 1;
         }
-      for (done=0,p=*new_argv,i=0; i < argc; i++)
-        if (!done && !strcmp (argv[i], "--display"))
-          {
-            new_argv[i] = (char*)"-display";
-            done = 1;
-          }
-        else
-          {
-            new_argv[i] = strcpy (p, argv[i]);
-            p += strlen (argv[i]) + 1;
-          }
+        n++;
+        new_argv = (char **)calloc(argc + 1, sizeof * new_argv);
+        if (new_argv) {
+            *new_argv = (char *)malloc(n);
+        }
+        if (!new_argv || !*new_argv) {
+            fprintf(stderr, "pinentry-qt: can't fixup argument list: %s\n",
+                    strerror(errno));
+            exit(EXIT_FAILURE);
 
-      /* We use a modal dialog window, so we don't need the application
-         window anymore.  */
-      i = argc;
-      new QApplication (i, new_argv);
+        }
+        for (done = 0, p = *new_argv, i = 0; i < argc; i++)
+            if (!done && !strcmp(argv[i], "--display")) {
+                new_argv[i] = strcpy(p, argv[i] + 1);
+                p += strlen(argv[i] + 1) + 1;
+                done = 1;
+            } else {
+                new_argv[i] = strcpy(p, argv[i]);
+                p += strlen(argv[i]) + 1;
+            }
+
+        /* We use a modal dialog window, so we don't need the application
+           window anymore.  */
+        i = argc;
+        app.reset(new QApplication(i, new_argv));
+        app->setWindowIcon(QIcon(QLatin1String(":/document-encrypt.png")));
     }
-  
 
-  /* Consumes all arguments.  */
-  if (pinentry_parse_opts (argc, argv))
-    {
-      printf ("pinentry-qt (pinentry) " VERSION "\n");
-      exit (EXIT_SUCCESS);
-    }
+    pinentry_parse_opts(argc, argv);
 
-  if (pinentry_loop ())
-    return 1;
-
-  return 0;
+    return pinentry_loop() ? EXIT_FAILURE : EXIT_SUCCESS ;
 }
