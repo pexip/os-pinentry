@@ -1,4 +1,4 @@
-This is pinentry.info, produced by makeinfo version 5.2 from
+This is pinentry.info, produced by makeinfo version 6.3 from
 pinentry.texi.
 
 INFO-DIR-SECTION GNU Utilities
@@ -8,8 +8,8 @@ END-INFO-DIR-ENTRY
 
 This file documents the use and the internals of the PINENTRY.
 
-   This is edition 1.0.0, last updated 3 November 2016, of 'The
-'PINEntry' Manual', for version 1.0.0.
+   This is edition 1.1.0, last updated 3 December 2017, of 'The
+'PINEntry' Manual', for version 1.1.0.
 
    Published by g10 Code GmbH
 Hüttenstr.  61
@@ -168,14 +168,12 @@ functionality can be explicitly disabled by passing
 '--disable-inside-emacs' to 'configure' when building PINENTRY.
 
    Having Emacs get the passphrase is convenient, however, it is a
-significant security risk.  Emacs keeps all key presses buffered.  (You
-can see the recent key presses by typing 'C-h l' ('view-lossage') in
-emacs.)  Further, Emacs is a huge program, which doesn't provide any
-process isolation to speak of.  As such, having it handle the passphrase
-adds a huge chunk of code to the user's trusted computing base.  Because
-of this concern, Emacs doesn't enable this by default (the user has to
-run '(pinentry-start)', e.g., from his or her '.emacs' file,
-explicitly).
+significant security risk.  Emacs is a huge program, which doesn't
+provide any process isolation to speak of.  As such, having it handle
+the passphrase adds a huge chunk of code to the user's trusted computing
+base.  Because of this concern, Emacs doesn't enable this by default,
+unless the 'allow-emacs-pinentry' option is explicitly set in his or her
+'.gnupg/gpg-agent.conf' file.
 
    Similar to the inside-emacs check, the PINENTRY frontends check
 whether the 'DISPLAY' variable is set and a working X server is
@@ -272,9 +270,9 @@ encoded as '%25', etc.).
 'Enable a passphrase quality indicator'
      Adds a quality indicator to the GETPIN window.  This indicator is
      updated as the passphrase is typed.  The clients needs to implement
-     an inquiry named "QUALITY" which gets passed the current passpharse
+     an inquiry named "QUALITY" which gets passed the current passphrase
      (percent-plus escaped) and should send back a string with a single
-     numerical vauelue between -100 and 100.  Negative values will be
+     numerical value between -100 and 100.  Negative values will be
      displayed in red.
             C: SETQUALITYBAR
             S: OK
@@ -985,10 +983,10 @@ Tag Table:
 Node: Top816
 Node: Using pinentry2241
 Node: Front ends4092
-Node: Protocol7762
-Node: Implementation Details16223
-Node: Copying24105
-Node: Option Index43284
-Node: Index44366
+Node: Protocol7644
+Node: Implementation Details16103
+Node: Copying23985
+Node: Option Index43164
+Node: Index44246
 
 End Tag Table

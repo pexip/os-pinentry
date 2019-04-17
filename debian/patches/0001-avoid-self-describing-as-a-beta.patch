@@ -33,7 +33,7 @@ index 37edfc6..2dff9cd 100755
        rvd="0"
      fi
 diff --git a/configure.ac b/configure.ac
-index 42c1589..3424fc8 100644
+index c1b66d6..05a902a 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -36,9 +36,7 @@ m4_define([mym4_revision], m4_esyscmd([git branch -v 2>/dev/null \

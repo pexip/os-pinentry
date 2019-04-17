@@ -1,11 +1,29 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Pinentry
 Upstream-Contact: gnupg-devel@gnupg.org
-Source: ftp://ftp.gnupg.org/GnuPG/pinentry/
+Source: https://gnupg.org/ftp/gcrypt/pinentry/
 
 Files: *
 Copyright: 2002-2015, g10 Code GmbH
 License: GPL-2+
+
+Files: fltk/*
+Copyright: 2016 Anatoly madRat L. Berenblit
+License: GPL-2+
+
+Files: tqt/Makefile.am tqt/main.cpp tqt/pinentrydialog.h tqt/pinentrydialog.cpp
+Copyright: 2002-2015 g10 Code GmbH
+ 2002 Klarälvdalens Datakonsult AB
+License: GPL-2+
+
+Files: tqt/secqinternal.cpp tqt/secqinternal_p.h
+Copyright: 1992-2000 Trolltech AS
+License: GPL-2
+
+Files: tqt/secqlineedit.cpp tqt/secqlineedit.h tqt/secqstring.cpp tqt/secqstring.h
+Copyright: 1992-2002 Trolltech AS
+ 2003 g10 Code GmbH
+License: GPL-2
 
 Files: build-aux/* depcomp doc/mdate-sh doc/texinfo.tex m4/curses.m4 m4/iconv.m4 missing secmem/secmem.c
 Copyright: 1996-2007, Free Software Foundation
@@ -109,6 +127,20 @@ License: GPL-2+
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation; either version 2 of the License, or
  (at your option) any later version.
+ .
+ It is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ On Debian systems, the full text of the GNU General Public
+ License version 2 can be found in the file
+ `/usr/share/common-licenses/GPL-2'.
+
+License: GPL-2
+ This is free software; you can redistribute it and/or modify
+ it under the terms of version 2 of the GNU General Public License
+ as published by  the Free Software Foundation.
  .
  It is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of

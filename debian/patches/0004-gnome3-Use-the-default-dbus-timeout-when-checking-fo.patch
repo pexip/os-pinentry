@@ -1,0 +1,42 @@
+From: "Zephaniah E. Loss-Cutler-Hull" <zephaniah@gmail.com>
+Date: Wed, 17 Apr 2019 14:08:48 -0400
+Subject: gnome3: Use the default dbus timeout when checking for screenlock
+
+* gnome3/pinentry-gnome3.c (pe_gnome_screen_locked): use default dbus
+timeout instead of 0ms.
+
+--
+
+At the moment, every single check to see if the screen is locked fails
+immediately with a timeout, which is then silently ignored.
+
+This is happening because the definition of the timeout argument is a
+millisecond count, with -1 as the (unspecified) default, and G_MAXINT for no
+timeout.
+
+This means 0 times out immediately, and that leads to a complete inability for
+pinentry-gnome3 to fallback to curses input when the screen is locked.
+
+(Which then prevents a remote session from ever asking for a PIN, even when
+the local session is locked.)
+
+Debian-bug-id: 927105
+Signed-off-by: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+(cherry picked from commit 65d2c6d5911ab04b19f953153d01116198cc4cb8)
+---
+ gnome3/pinentry-gnome3.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gnome3/pinentry-gnome3.c b/gnome3/pinentry-gnome3.c
+index b395676..40c72ac 100644
+--- a/gnome3/pinentry-gnome3.c
++++ b/gnome3/pinentry-gnome3.c
+@@ -446,7 +446,7 @@ pe_gnome_screen_locked (void)
+                                        NULL,
+                                        ((const GVariantType *) "(b)"),
+                                        G_DBUS_CALL_FLAGS_NO_AUTO_START,
+-                                       0,
++                                       -1,
+                                        NULL,
+                                        &error);
+   g_object_unref(dbus);

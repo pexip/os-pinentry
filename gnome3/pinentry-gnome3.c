@@ -1,22 +1,23 @@
 /* pinentry-gnome3.c
-   Copyright (C) 2015 g10 Code GmbH
-
-   pinentry-gnome-3 is a pinentry application for GNOME 3.  It tries
-   to follow the Gnome Human Interface Guide as close as possible.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+ * Copyright (C) 2015 g10 Code GmbH
+ *
+ * pinentry-gnome-3 is a pinentry application for GNOME 3.  It tries
+ * to follow the Gnome Human Interface Guide as close as possible.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-2.0+
+ */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -121,7 +122,7 @@ create_prompt (pinentry_t pe, int confirm)
 {
   GcrPrompt *prompt;
   GError *error = NULL;
-  char *msg;
+  char *msg, *p;
   char window_id[32];
 
   /* Create the prompt.  */
@@ -149,11 +150,16 @@ create_prompt (pinentry_t pe, int confirm)
     }
 
   /* Set the messages for the various buttons, etc.  */
-  if (pe->title)
+  p = pinentry_get_title (pe);
+  if (p)
     {
-      msg = pinentry_utf8_validate (pe->title);
-      gcr_prompt_set_title (prompt, msg);
-      g_free (msg);
+      msg = pinentry_utf8_validate (p);
+      if (msg)
+        {
+          gcr_prompt_set_title (prompt, msg);
+          g_free (msg);
+        }
+      free (p);
     }
 
   if (pe->description)
@@ -247,7 +253,7 @@ gnome3_cmd_handler (pinentry_t pe)
   state.ret = 0;
   state.timeout_id = 0;
   state.timed_out = 0;
-  state.prompt = create_prompt (pe, !!(pe->pin));
+  state.prompt = create_prompt (pe, !(pe->pin));
   if (!state.prompt)
     {
       pe->canceled = 1;
@@ -517,18 +523,21 @@ main (int argc, char *argv[])
       fprintf (stderr, "No $DBUS_SESSION_BUS_ADDRESS found,"
                " falling back to curses\n");
       pinentry_cmd_handler = curses_cmd_handler;
+      pinentry_set_flavor_flag ("curses");
     }
   else if (!pe_gcr_system_prompt_available ())
     {
       fprintf (stderr, "No Gcr System Prompter available,"
                " falling back to curses\n");
       pinentry_cmd_handler = curses_cmd_handler;
+      pinentry_set_flavor_flag ("curses");
     }
   else if (pe_gnome_screen_locked ())
     {
       fprintf (stderr, "GNOME screensaver is locked,"
                " falling back to curses\n");
       pinentry_cmd_handler = curses_cmd_handler;
+      pinentry_set_flavor_flag ("curses");
     }
 #endif
 

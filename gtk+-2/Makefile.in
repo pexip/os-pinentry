@@ -23,15 +23,15 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # PINENTRY is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-2.0+
 
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
@@ -207,17 +207,21 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+FLTKCFLAGS = @FLTKCFLAGS@
+FLTKCXXFLAGS = @FLTKCXXFLAGS@
+FLTKLIBS = @FLTKLIBS@
+FLTK_CONFIG = @FLTK_CONFIG@
 GITLOG_TO_CHANGELOG = @GITLOG_TO_CHANGELOG@
-GNOME3CFLAGS = @GNOME3CFLAGS@
-GNOME3LIBS = @GNOME3LIBS@
+GNOME3_CFLAGS = @GNOME3_CFLAGS@
+GNOME3_LIBS = @GNOME3_LIBS@
 GPG_ERROR_CFLAGS = @GPG_ERROR_CFLAGS@
 GPG_ERROR_CONFIG = @GPG_ERROR_CONFIG@
 GPG_ERROR_LIBS = @GPG_ERROR_LIBS@
 GPG_ERROR_MT_CFLAGS = @GPG_ERROR_MT_CFLAGS@
 GPG_ERROR_MT_LIBS = @GPG_ERROR_MT_LIBS@
 GREP = @GREP@
-GTK2CFLAGS = @GTK2CFLAGS@
-GTK2LIBS = @GTK2LIBS@
+GTK2_CFLAGS = @GTK2_CFLAGS@
+GTK2_LIBS = @GTK2_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -233,6 +237,8 @@ LIBICONV = @LIBICONV@
 LIBNCURSES = @LIBNCURSES@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBSECRET_CFLAGS = @LIBSECRET_CFLAGS@
+LIBSECRET_LIBS = @LIBSECRET_LIBS@
 LIBTERMCAP = @LIBTERMCAP@
 LN_S = @LN_S@
 LTLIBICONV = @LTLIBICONV@
@@ -259,6 +265,8 @@ PINENTRY_QT_CFLAGS = @PINENTRY_QT_CFLAGS@
 PINENTRY_QT_LIBS = @PINENTRY_QT_LIBS@
 PINENTRY_QT_REQUIRE_CPP11_CFLAGS = @PINENTRY_QT_REQUIRE_CPP11_CFLAGS@
 PINENTRY_QT_REQUIRE_CPP11_LIBS = @PINENTRY_QT_REQUIRE_CPP11_LIBS@
+PINENTRY_TQT_CFLAGS = @PINENTRY_TQT_CFLAGS@
+PINENTRY_TQT_LIBS = @PINENTRY_TQT_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 QTCHOOSER = @QTCHOOSER@
 RANLIB = @RANLIB@
@@ -266,6 +274,7 @@ SETCAP = @SETCAP@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TQT_MOC = @TQT_MOC@
 VERSION = @VERSION@
 WINDRES = @WINDRES@
 abs_builddir = @abs_builddir@
@@ -323,11 +332,11 @@ top_srcdir = @top_srcdir@
 @FALLBACK_CURSES_TRUE@ncurses_include = $(NCURSES_INCLUDE)
 @FALLBACK_CURSES_FALSE@libcurses = 
 @FALLBACK_CURSES_TRUE@libcurses = ../pinentry/libpinentry-curses.a $(LIBCURSES) $(LIBICONV)
-AM_CPPFLAGS = $(COMMON_CFLAGS) $(GTK2CFLAGS) $(ncurses_include) \
+AM_CPPFLAGS = $(COMMON_CFLAGS) $(GTK2_CFLAGS) $(ncurses_include) \
 	-I$(top_srcdir)/secmem -I$(top_srcdir)/pinentry
 
 LDADD = ../pinentry/libpinentry.a ../secmem/libsecmem.a \
-	$(COMMON_LIBS) $(LIBCAP) $(GTK2LIBS) $(libcurses)
+	$(COMMON_LIBS) $(LIBCAP) $(GTK2_LIBS) $(libcurses)
 
 pinentry_gtk_2_SOURCES = pinentry-gtk-2.c
 all: all-am

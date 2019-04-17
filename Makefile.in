@@ -30,8 +30,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-2.0+
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -182,7 +182,7 @@ ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
 DIST_SUBDIRS = m4 secmem pinentry curses tty emacs gtk+-2 gnome3 qt \
-	w32 doc
+	tqt w32 fltk doc
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -250,17 +250,21 @@ ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+FLTKCFLAGS = @FLTKCFLAGS@
+FLTKCXXFLAGS = @FLTKCXXFLAGS@
+FLTKLIBS = @FLTKLIBS@
+FLTK_CONFIG = @FLTK_CONFIG@
 GITLOG_TO_CHANGELOG = gitlog-to-changelog
-GNOME3CFLAGS = @GNOME3CFLAGS@
-GNOME3LIBS = @GNOME3LIBS@
+GNOME3_CFLAGS = @GNOME3_CFLAGS@
+GNOME3_LIBS = @GNOME3_LIBS@
 GPG_ERROR_CFLAGS = @GPG_ERROR_CFLAGS@
 GPG_ERROR_CONFIG = @GPG_ERROR_CONFIG@
 GPG_ERROR_LIBS = @GPG_ERROR_LIBS@
 GPG_ERROR_MT_CFLAGS = @GPG_ERROR_MT_CFLAGS@
 GPG_ERROR_MT_LIBS = @GPG_ERROR_MT_LIBS@
 GREP = @GREP@
-GTK2CFLAGS = @GTK2CFLAGS@
-GTK2LIBS = @GTK2LIBS@
+GTK2_CFLAGS = @GTK2_CFLAGS@
+GTK2_LIBS = @GTK2_LIBS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -276,6 +280,8 @@ LIBICONV = @LIBICONV@
 LIBNCURSES = @LIBNCURSES@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
+LIBSECRET_CFLAGS = @LIBSECRET_CFLAGS@
+LIBSECRET_LIBS = @LIBSECRET_LIBS@
 LIBTERMCAP = @LIBTERMCAP@
 LN_S = @LN_S@
 LTLIBICONV = @LTLIBICONV@
@@ -302,6 +308,8 @@ PINENTRY_QT_CFLAGS = @PINENTRY_QT_CFLAGS@
 PINENTRY_QT_LIBS = @PINENTRY_QT_LIBS@
 PINENTRY_QT_REQUIRE_CPP11_CFLAGS = @PINENTRY_QT_REQUIRE_CPP11_CFLAGS@
 PINENTRY_QT_REQUIRE_CPP11_LIBS = @PINENTRY_QT_REQUIRE_CPP11_LIBS@
+PINENTRY_TQT_CFLAGS = @PINENTRY_TQT_CFLAGS@
+PINENTRY_TQT_LIBS = @PINENTRY_TQT_LIBS@
 PKG_CONFIG = @PKG_CONFIG@
 QTCHOOSER = @QTCHOOSER@
 RANLIB = @RANLIB@
@@ -309,6 +317,7 @@ SETCAP = @SETCAP@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+TQT_MOC = @TQT_MOC@
 VERSION = @VERSION@
 WINDRES = @WINDRES@
 abs_builddir = @abs_builddir@
@@ -363,7 +372,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
-DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt
+DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt --enable-pinentry-emacs
 EXTRA_DIST = autogen.sh autogen.rc README.GIT ChangeLog-old \
 	     build-aux/gitlog-to-changelog \
 	     build-aux/git-log-fix build-aux/git-log-footer
@@ -380,11 +389,16 @@ EXTRA_DIST = autogen.sh autogen.rc README.GIT ChangeLog-old \
 @BUILD_PINENTRY_GNOME_3_TRUE@pinentry_gnome_3 = gnome3
 @BUILD_PINENTRY_QT_FALSE@pinentry_qt = 
 @BUILD_PINENTRY_QT_TRUE@pinentry_qt = qt
+@BUILD_PINENTRY_TQT_FALSE@pinentry_tqt = 
+@BUILD_PINENTRY_TQT_TRUE@pinentry_tqt = tqt
 @BUILD_PINENTRY_W32_FALSE@pinentry_w32 = 
 @BUILD_PINENTRY_W32_TRUE@pinentry_w32 = w32
+@BUILD_PINENTRY_FLTK_FALSE@pinentry_fltk = 
+@BUILD_PINENTRY_FLTK_TRUE@pinentry_fltk = fltk
 SUBDIRS = m4 secmem pinentry ${pinentry_curses} ${pinentry_tty} \
 	${pinentry_emacs} ${pinentry_gtk_2} ${pinentry_gnome_3} \
-	${pinentry_qt} ${pinentry_w32} doc
+	${pinentry_qt} ${pinentry_tqt} ${pinentry_w32} \
+	${pinentry_fltk} doc
 
 gen_start_date = 2012-08-08T00:00:00
 all: config.h
@@ -679,6 +693,7 @@ distcheck: dist
 	test -d $(distdir)/_build || exit 0; \
 	dc_install_base=`$(am__cd) $(distdir)/_inst && pwd | sed -e 's,^[^:\\/]:[\\/],/,'` \
 	  && dc_destdir="$${TMPDIR-/tmp}/am-dc-$$$$/" \
+	  && $(MAKE) $(AM_MAKEFLAGS) distcheck-hook \
 	  && am__cwd=`pwd` \
 	  && $(am__cd) $(distdir)/_build \
 	  && ../configure \
@@ -872,6 +887,20 @@ install-exec-local:
 
 dist-hook: gen-ChangeLog
 	echo "$(VERSION)" > $(distdir)/VERSION
+
+distcheck-hook:
+	set -e; ( \
+	pref="#+macro: pinentry_" ;\
+	reldate="$$(date -u +%Y-%m-%d)" ;\
+        echo "$${pref}ver  $(PACKAGE_VERSION)"  ;\
+        echo "$${pref}date $${reldate}" ;\
+        list='$(DIST_ARCHIVES)'; for i in $$list; do \
+	  case "$$i" in *.tar.bz2) \
+            echo "$${pref}size $$(wc -c <$$i|awk '{print int($$1/1024)}')k" ;\
+	    echo "$${pref}sha1 $$(sha1sum <$$i|cut -d' ' -f1)" ;\
+	    echo "$${pref}sha2 $$(sha256sum <$$i|cut -d' ' -f1)" ;;\
+	  esac;\
+	done ) | tee $(distdir).swdb
 .PHONY: gen-ChangeLog
 gen-ChangeLog:
 	if test -d $(top_srcdir)/.git; then				\

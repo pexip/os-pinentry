@@ -2,32 +2,41 @@ Source: pinentry
 Section: utils
 Priority: optional
 Maintainer: Debian GnuPG Maintainers <pkg-gnupg-maint@lists.alioth.debian.org>
-Uploaders: Peter Eisentraut <petere@debian.org>,
-           Daniel Kahn Gillmor <dkg@fifthhorseman.net>
-Build-Depends: debhelper (>= 10),
-               dh-autoreconf,
-               libassuan-dev (>= 2.1.0),
-               libgcr-3-dev,
-               libglib2.0-dev (>= 2.15.5),
-               libgpg-error-dev (>= 1.16),
-               libgtk2.0-dev (>= 2.4.0),
-               libncurses5-dev,
-               libncursesw5-dev,
-               libsecret-1-dev,
-               m4,
-               qtbase5-dev,
-               texinfo
-Standards-Version: 3.9.8
+Uploaders:
+ Peter Eisentraut <petere@debian.org>,
+ Daniel Kahn Gillmor <dkg@fifthhorseman.net>,
+Build-Depends:
+ debhelper (>= 11~),
+ libassuan-dev (>= 2.1.0),
+ libfltk1.3-dev,
+ libgcr-3-dev,
+ libglib2.0-dev (>= 2.15.5),
+ libgpg-error-dev (>= 1.16),
+ libgtk2.0-dev (>= 2.4.0),
+ libncurses5-dev,
+ libncursesw5-dev,
+ libsecret-1-dev,
+ m4,
+ pkg-config,
+ qtbase5-dev,
+ texinfo,
+Standards-Version: 4.3.0
 Homepage: https://www.gnupg.org/related_software/pinentry/
-Vcs-Git: https://anonscm.debian.org/git/pkg-gnupg/pinentry.git
-Vcs-Browser: https://anonscm.debian.org/cgit/pkg-gnupg/pinentry.git
+Vcs-Git: https://salsa.debian.org/debian/pinentry.git
+Vcs-Browser: https://salsa.debian.org/debian/pinentry
+Rules-Requires-Root: no
 
 Package: pinentry-curses
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Suggests: pinentry-doc
-Provides: pinentry
-Enhances: gnupg-agent
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-doc,
+Provides:
+ pinentry,
+Enhances:
+ gnupg-agent,
 Description: curses-based PIN or pass-phrase entry dialog for GnuPG
  This package contains a program that allows for secure entry of PINs or
  pass phrases.  That means it tries to take care that the entered
@@ -47,10 +56,15 @@ Description: curses-based PIN or pass-phrase entry dialog for GnuPG
 
 Package: pinentry-tty
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Suggests: pinentry-doc
-Provides: pinentry
-Enhances: gnupg-agent
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-doc,
+Provides:
+ pinentry,
+Enhances:
+ gnupg-agent,
 Description: minimal dumb-terminal PIN or pass-phrase entry for GnuPG
  This package contains a program that allows for secure entry of PINs or
  pass phrases.  That means it tries to take care that the entered
@@ -70,10 +84,16 @@ Description: minimal dumb-terminal PIN or pass-phrase entry for GnuPG
 
 Package: pinentry-qt
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Suggests: pinentry-doc
-Provides: pinentry, pinentry-x11
-Enhances: gnupg-agent
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-doc,
+Provides:
+ pinentry,
+ pinentry-x11,
+Enhances:
+ gnupg-agent,
 Description: Qt-based PIN or pass-phrase entry dialog for GnuPG
  This package contains a program that allows for entry of PINs or pass
  phrases.  It is useful for entering pass phrases when using encryption
@@ -88,7 +108,10 @@ Description: Qt-based PIN or pass-phrase entry dialog for GnuPG
 
 Package: pinentry-qt4
 Architecture: all
-Depends: pinentry-qt (>= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Depends:
+ pinentry-qt (>= ${binary:Version}),
+ ${misc:Depends},
+ ${shlibs:Depends},
 Description: Qt-based PIN or pass-phrase entry dialog for GnuPG (transitional dummy package)
  Pinentry is a program for secure entry of PINs and passphrases, from
  the GnuPG project.
@@ -98,10 +121,16 @@ Description: Qt-based PIN or pass-phrase entry dialog for GnuPG (transitional du
 
 Package: pinentry-gtk2
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Suggests: pinentry-doc
-Provides: pinentry, pinentry-x11
-Enhances: gnupg-agent
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-doc,
+Provides:
+ pinentry,
+ pinentry-x11,
+Enhances:
+ gnupg-agent,
 Description: GTK+-2-based PIN or pass-phrase entry dialog for GnuPG
  This package contains a program that allows for secure entry of PINs or
  pass phrases.  That means it tries to take care that the entered
@@ -117,13 +146,48 @@ Description: GTK+-2-based PIN or pass-phrase entry dialog for GnuPG
  sibling packages that implement PIN entry dialogs using other tool
  kits.
 
+Package: pinentry-fltk
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-doc,
+Provides:
+ pinentry,
+ pinentry-x11,
+Enhances:
+ gnupg-agent,
+Description: FLTK-based PIN or pass-phrase entry dialog for GnuPG
+ This package contains a program that allows for secure entry of PINs or
+ pass phrases.  That means it tries to take care that the entered
+ information is not swapped to disk or temporarily stored anywhere.
+ This functionality is particularly useful for entering pass phrases
+ when using encryption software such as GnuPG or e-mail clients using
+ the same.  It uses an open protocol and is therefore not tied to
+ particular software.
+ .
+ The program contained in this package implements a PIN entry dialog
+ using the Fast Light Toolkit version 1.3.  If the X Window System is
+ not active then an alternative text-mode dialog will be used.  There
+ are sibling packages that implement PIN entry dialogs using other
+ tool kits.
+
 Package: pinentry-gnome3
 Architecture: any
-Depends: gcr, ${misc:Depends}, ${shlibs:Depends}
-Suggests: pinentry-doc
-Provides: pinentry, pinentry-x11
-Recommends: dbus-user-session
-Enhances: gnupg-agent
+Depends:
+ gcr,
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-doc,
+Provides:
+ pinentry,
+ pinentry-x11,
+Recommends:
+ dbus-user-session,
+Enhances:
+ gnupg-agent,
 Description: GNOME 3 PIN or pass-phrase entry dialog for GnuPG
  This package contains a program that allows for secure entry of PINs or
  pass phrases.  That means it tries to take care that the entered
@@ -143,8 +207,14 @@ Description: GNOME 3 PIN or pass-phrase entry dialog for GnuPG
 Package: pinentry-doc
 Section: doc
 Architecture: all
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Suggests: pinentry-curses, pinentry-gnome3, pinentry-gtk2, pinentry-qt4
+Depends:
+ ${misc:Depends},
+ ${shlibs:Depends},
+Suggests:
+ pinentry-curses,
+ pinentry-gnome3,
+ pinentry-gtk2,
+ pinentry-qt4,
 Description: documentation for pinentry packages
  This package contains the documentation for the pinentry packages,
  a suite of programs that allow secure entry of PINs or pass phrases.

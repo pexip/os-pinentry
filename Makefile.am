@@ -14,13 +14,13 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-2.0+
 
 ## Process this file with automake to produce Makefile.in
 
 ACLOCAL_AMFLAGS = -I m4
-DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt
+DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt --enable-pinentry-emacs
 
 GITLOG_TO_CHANGELOG=gitlog-to-changelog
 
@@ -64,15 +64,28 @@ else
 pinentry_qt =
 endif
 
+if BUILD_PINENTRY_TQT
+pinentry_tqt = tqt
+else
+pinentry_tqt =
+endif
+
 if BUILD_PINENTRY_W32
 pinentry_w32 = w32
 else
 pinentry_w32 =
 endif
 
+if BUILD_PINENTRY_FLTK
+pinentry_fltk = fltk
+else
+pinentry_fltk =
+endif
+
 SUBDIRS = m4 secmem pinentry ${pinentry_curses} ${pinentry_tty} \
 	${pinentry_emacs} ${pinentry_gtk_2} ${pinentry_gnome_3} \
-	${pinentry_qt} ${pinentry_w32} doc
+	${pinentry_qt} ${pinentry_tqt} ${pinentry_w32} \
+	${pinentry_fltk} doc
 
 
 install-exec-local:
@@ -87,6 +100,21 @@ install-exec-local:
 
 dist-hook: gen-ChangeLog
 	echo "$(VERSION)" > $(distdir)/VERSION
+
+distcheck-hook:
+	set -e; ( \
+	pref="#+macro: pinentry_" ;\
+	reldate="$$(date -u +%Y-%m-%d)" ;\
+        echo "$${pref}ver  $(PACKAGE_VERSION)"  ;\
+        echo "$${pref}date $${reldate}" ;\
+        list='$(DIST_ARCHIVES)'; for i in $$list; do \
+	  case "$$i" in *.tar.bz2) \
+            echo "$${pref}size $$(wc -c <$$i|awk '{print int($$1/1024)}')k" ;\
+	    echo "$${pref}sha1 $$(sha1sum <$$i|cut -d' ' -f1)" ;\
+	    echo "$${pref}sha2 $$(sha256sum <$$i|cut -d' ' -f1)" ;;\
+	  esac;\
+	done ) | tee $(distdir).swdb
+
 
 gen_start_date = 2012-08-08T00:00:00
 .PHONY: gen-ChangeLog

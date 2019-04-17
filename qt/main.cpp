@@ -1,27 +1,26 @@
 /* main.cpp - A Qt dialog for PIN entry.
-
-   Copyright (C) 2002, 2008 Klarälvdalens Datakonsult AB (KDAB)
-   Copyright (C) 2003 g10 Code GmbH
-   Copyright 2007 Ingo Klöcker
-
-   Written by Steffen Hansen <steffen@klaralvdalens-datakonsult.se>.
-   Modified by Marcus Brinkmann <marcus@g10code.de>.
-   Modified by Marc Mutz <marc@kdab.com>
-
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; either version 2 of the
-   License, or (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*/
+ * Copyright (C) 2002, 2008 Klarälvdalens Datakonsult AB (KDAB)
+ * Copyright (C) 2003 g10 Code GmbH
+ * Copyright 2007 Ingo Klöcker
+ *
+ * Written by Steffen Hansen <steffen@klaralvdalens-datakonsult.se>.
+ * Modified by Marcus Brinkmann <marcus@g10code.de>.
+ * Modified by Marc Mutz <marc@kdab.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-2.0+
+ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -42,7 +41,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <memory>
 #include <stdexcept>
 #include <gpg-error.h>
 
@@ -145,6 +143,7 @@ static int
 qt_cmd_handler(pinentry_t pe)
 {
     QWidget *parent = 0;
+    char *str;
 
     /* FIXME: Add parent window ID to pinentry and GTK.  */
     if (pe->parent_wid) {
@@ -161,9 +160,13 @@ qt_cmd_handler(pinentry_t pe)
         pe->cancel         ? escape_accel(from_utf8(pe->cancel)) :
         pe->default_cancel ? escape_accel(from_utf8(pe->default_cancel)) :
         /* else */           QLatin1String("&Cancel") ;
+
+    str = pinentry_get_title (pe);
     const QString title =
-        pe->title ? from_utf8(pe->title) :
+        str       ? from_utf8(str) :
         /* else */  QLatin1String("pinentry-qt") ;
+    free (str);
+
     const QString repeatError =
         pe->repeat_error_string ? from_utf8(pe->repeat_error_string) :
                                   QLatin1String("Passphrases do not match");
@@ -179,6 +182,8 @@ qt_cmd_handler(pinentry_t pe)
 
 
     if (want_pass) {
+        char *str;
+
         PinEntryDialog pinentry(parent, 0, pe->timeout, true, !!pe->quality_bar,
                                 repeatString, visibilityTT, hideTT);
 
@@ -186,8 +191,11 @@ qt_cmd_handler(pinentry_t pe)
         pinentry.setPrompt(escape_accel(from_utf8(pe->prompt)));
         pinentry.setDescription(from_utf8(pe->description));
         pinentry.setRepeatErrorText(repeatError);
-        if (pe->title) {
-            pinentry.setWindowTitle(from_utf8(pe->title));
+
+        str = pinentry_get_title (pe);
+        if (str) {
+            pinentry.setWindowTitle(from_utf8(str));
+            free (str);
         }
 
         /* If we reuse the same dialog window.  */
@@ -303,11 +311,12 @@ main(int argc, char *argv[])
 {
     pinentry_init("pinentry-qt");
 
-    std::auto_ptr<QApplication> app;
+    QApplication *app = NULL;
 
 #ifdef FALLBACK_CURSES
     if (!pinentry_have_display(argc, argv)) {
         pinentry_cmd_handler = curses_cmd_handler;
+        pinentry_set_flavor_flag ("curses");
     } else
 #endif
     {
@@ -342,14 +351,14 @@ main(int argc, char *argv[])
                 p += strlen(argv[i]) + 1;
             }
 
-        /* We use a modal dialog window, so we don't need the application
-           window anymore.  */
         i = argc;
-        app.reset(new QApplication(i, new_argv));
+        app = new QApplication(i, new_argv);
         app->setWindowIcon(QIcon(QLatin1String(":/document-encrypt.png")));
     }
 
     pinentry_parse_opts(argc, argv);
 
-    return pinentry_loop() ? EXIT_FAILURE : EXIT_SUCCESS ;
+    int rc = pinentry_loop();
+    delete app;
+    return rc ? EXIT_FAILURE : EXIT_SUCCESS ;
 }
