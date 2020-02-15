@@ -1,22 +1,23 @@
-/* pinentry-curses.c - A secure curses dialog for PIN entry, library version
-   Copyright (C) 2014 Serge Voilokov
-   Copyright (C) 2015 Daniel Kahn Gillmor <dkg@fifthhorseman.net>
-   Copyright (C) 2015 g10 Code GmbH
-
-   This file is part of PINENTRY.
-
-   PINENTRY is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   PINENTRY is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, see <https://www.gnu.org/licenses/>.
+/* pinentry-tty.c - A minimalist dumb terminal mechanism for PIN entry
+ * Copyright (C) 2014 Serge Voilokov
+ * Copyright (C) 2015 Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+ * Copyright (C) 2015 g10 Code GmbH
+ *
+ * This file is part of PINENTRY.
+ *
+ * PINENTRY is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * PINENTRY is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #ifdef HAVE_CONFIG_H
@@ -173,6 +174,7 @@ static int
 confirm (pinentry_t pinentry, FILE *ttyfi, FILE *ttyfo)
 {
   char *msg;
+  char *msgbuffer = NULL;
 
   char ok = 0;
   char notok = 0;
@@ -184,8 +186,10 @@ confirm (pinentry_t pinentry, FILE *ttyfi, FILE *ttyfo)
 
   msg = pinentry->description;
   if (! msg)
-    /* If there is no description, fallback to the title.  */
-    msg = pinentry->title;
+    {
+      /* If there is no description, fallback to the title.  */
+      msg = msgbuffer = pinentry_get_title (pinentry);
+    }
   if (! msg)
     msg = "Confirm:";
 
@@ -194,6 +198,7 @@ confirm (pinentry_t pinentry, FILE *ttyfi, FILE *ttyfo)
       fputs (msg, ttyfo);
       fputc ('\n', ttyfo);
     }
+  free (msgbuffer);
 
   fflush (ttyfo);
 
@@ -377,17 +382,19 @@ static int
 password (pinentry_t pinentry, FILE *ttyfi, FILE *ttyfo)
 {
   char *msg;
+  char *msgbuffer = NULL;
   int done = 0;
 
   msg = pinentry->description;
   if (! msg)
-    msg = pinentry->title;
+    msg = msgbuffer = pinentry_get_title (pinentry);
   if (! msg)
     msg = "Enter your passphrase.";
 
   dump_error_text (ttyfo, pinentry->error);
 
   fprintf (ttyfo, "%s\n", msg);
+  free (msgbuffer);
 
   while (! done)
     {
@@ -556,9 +563,6 @@ tty_cmd_handler(pinentry_t pinentry)
 
 pinentry_cmd_handler_t pinentry_cmd_handler = tty_cmd_handler;
 
-/* needed to link cleanly; should never be used except for comparison
- * in pinentry/pinentry.c's cmd_getinfo(): */
-pinentry_cmd_handler_t curses_cmd_handler = NULL;
 
 
 int

@@ -1,25 +1,26 @@
 /* pinentry-gtk-2.c
-   Copyright (C) 1999 Robert Bihlmeyer <robbe@orcus.priv.at>
-   Copyright (C) 2001, 2002, 2007, 2015 g10 Code GmbH
-   Copyright (C) 2004 by Albrecht Dreß <albrecht.dress@arcor.de>
-
-   pinentry-gtk-2 is a pinentry application for the Gtk+-2 widget set.
-   It tries to follow the Gnome Human Interface Guide as close as
-   possible.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+ * Copyright (C) 1999 Robert Bihlmeyer <robbe@orcus.priv.at>
+ * Copyright (C) 2001, 2002, 2007, 2015 g10 Code GmbH
+ * Copyright (C) 2004 by Albrecht Dreß <albrecht.dress@arcor.de>
+ *
+ * pinentry-gtk-2 is a pinentry application for the Gtk+-2 widget set.
+ * It tries to follow the Gnome Human Interface Guide as close as
+ * possible.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-2.0+
+ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -113,9 +114,9 @@ constrain_size (GtkWidget *win, GtkRequisition *req, gpointer data)
 }
 
 
-/* Realize the window as transient if we grab the keyboard.  This
-   makes the window a modal dialog to the root window, which helps the
-   window manager.  See the following quote from:
+/* Realize the window as transient.  This makes the window a modal
+   dialog to the root window, which helps the window manager.
+   See the following quote from:
    https://standards.freedesktop.org/wm-spec/wm-spec-1.4.html#id2512420
 
    Implementing enhanced support for application transient windows
@@ -135,9 +136,6 @@ make_transient (GtkWidget *win, GdkEvent *event, gpointer data)
 
   (void)event;
   (void)data;
-
-  if (! pinentry->grab)
-    return;
 
   /* Make window transient for the root window.  */
   screen = gdk_screen_get_default ();
@@ -203,7 +201,12 @@ grab_pointer (GtkWidget *win, GdkEvent *event, gpointer data)
   (void)data;
 
   /* Change the cursor for the duration of the grab to indicate that
-     something is going on.  */
+   * something is going on.  The fvwm window manager grabs the pointer
+   * for a short time and thus we may end up with the already grabbed
+   * error code.  Actually this error code should be used to detect a
+   * malicious grabbing application but with fvwm this renders
+   * Pinentry only unusable.  Thus we try again several times also for
+   * that error code.  See Debian bug 850708 for details.  */
   /* XXX: It would be nice to have a key cursor, unfortunately there
      is none readily available.  */
   cursor = gdk_cursor_new_for_display (gtk_widget_get_display (win),
@@ -215,7 +218,8 @@ grab_pointer (GtkWidget *win, GdkEvent *event, gpointer data)
                             NULL /* confine to */,
                             cursor,
                             gdk_event_get_time (event));
-  while (tries++ < max_tries && err == GDK_GRAB_NOT_VIEWABLE);
+  while (tries++ < max_tries && (err == GDK_GRAB_NOT_VIEWABLE
+                                 || err == GDK_GRAB_ALREADY_GRABBED));
 
   if (err)
     {
@@ -510,7 +514,10 @@ show_hide_button_toggled (GtkWidget *widget, gpointer data)
     }
 
   gtk_label_set_markup (GTK_LABEL(label), text);
-  gtk_widget_set_tooltip_text (GTK_WIDGET(button), tooltip);
+  if (!pinentry->grab)
+    {
+      gtk_widget_set_tooltip_text (GTK_WIDGET(button), tooltip);
+    }
   g_free (tooltip);
 }
 
@@ -557,6 +564,7 @@ create_window (pinentry_t ctx)
   GtkWidget *wvbox, *chbox, *bbox;
   GtkAccelGroup *acc;
   gchar *msg;
+  char *p;
 
   repeat_entry = NULL;
 
@@ -579,12 +587,12 @@ create_window (pinentry_t ctx)
 #endif
   g_signal_connect (G_OBJECT (win), "size-request",
 		    G_CALLBACK (constrain_size), NULL);
+
+  g_signal_connect (G_OBJECT (win),
+		    "realize", G_CALLBACK (make_transient), NULL);
+
   if (!confirm_mode)
     {
-      if (pinentry->grab)
-	g_signal_connect (G_OBJECT (win),
-			  "realize", G_CALLBACK (make_transient), NULL);
-
       /* We need to grab the keyboard when its visible! not when its
          mapped (there is a difference)  */
       g_object_set (G_OBJECT(win), "events",
@@ -620,11 +628,16 @@ create_window (pinentry_t ctx)
   box = gtk_vbox_new (FALSE, HIG_SMALL);
   gtk_box_pack_start (GTK_BOX (chbox), box, TRUE, TRUE, 0);
 
-  if (pinentry->title)
+  p = pinentry_get_title (pinentry);
+  if (p)
     {
-      msg = pinentry_utf8_validate (pinentry->title);
-      gtk_window_set_title (GTK_WINDOW(win), msg);
+      msg = pinentry_utf8_validate (p);
+      if (msg)
+        gtk_window_set_title (GTK_WINDOW(win), msg);
+      g_free (msg);
+      free (p);
     }
+
   if (pinentry->description)
     {
       msg = pinentry_utf8_validate (pinentry->description);
@@ -724,7 +737,7 @@ create_window (pinentry_t ctx)
 	  gtk_progress_bar_set_text (GTK_PROGRESS_BAR (qualitybar),
 				     QUALITYBAR_EMPTY_TEXT);
 	  gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (qualitybar), 0.0);
-          if (pinentry->quality_bar_tt)
+          if (pinentry->quality_bar_tt && !pinentry->grab)
 	    {
 #if !GTK_CHECK_VERSION (2, 12, 0)
 	      gtk_tooltips_set_tip (GTK_TOOLTIPS (tooltips), qualitybar,
@@ -938,10 +951,16 @@ main (int argc, char *argv[])
   if (pinentry_have_display (argc, argv))
     {
       if (! gtk_init_check (&argc, &argv))
-	pinentry_cmd_handler = curses_cmd_handler;
+        {
+          pinentry_cmd_handler = curses_cmd_handler;
+          pinentry_set_flavor_flag ("curses");
+        }
     }
   else
-    pinentry_cmd_handler = curses_cmd_handler;
+    {
+      pinentry_cmd_handler = curses_cmd_handler;
+      pinentry_set_flavor_flag ("curses");
+    }
 #else
   gtk_init (&argc, &argv);
 #endif

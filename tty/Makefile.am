@@ -1,4 +1,4 @@
-# Makefile.am - PIN entry curses frontend.
+# Makefile.am - PIN entry tty frontend.
 # Copyright (C) 2002, 2015 g10 Code GmbH
 #
 # This file is part of PINENTRY.
@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <https://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-2.0+
 
 ## Process this file with automake to produce Makefile.in
 

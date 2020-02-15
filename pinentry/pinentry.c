@@ -1,20 +1,21 @@
 /* pinentry.c - The PIN entry support library
-   Copyright (C) 2002, 2003, 2007, 2008, 2010, 2015, 2016 g10 Code GmbH
-
-   This file is part of PINENTRY.
-
-   PINENTRY is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   PINENTRY is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * Copyright (C) 2002, 2003, 2007, 2008, 2010, 2015, 2016 g10 Code GmbH
+ *
+ * This file is part of PINENTRY.
+ *
+ * PINENTRY is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * PINENTRY is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #ifdef HAVE_CONFIG_H
@@ -28,6 +29,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
+#ifndef HAVE_W32_SYSTEM
+# include <sys/utsname.h>
+#endif
 #ifndef HAVE_W32CE_SYSTEM
 # include <locale.h>
 #endif
@@ -39,8 +43,10 @@
 # include <windows.h>
 #endif
 
+#undef WITH_UTF8_CONVERSION
 #if defined FALLBACK_CURSES || defined PINENTRY_CURSES || defined PINENTRY_GTK
-#include <iconv.h>
+# include <iconv.h>
+# define WITH_UTF8_CONVERSION 1
 #endif
 
 #include <assuan.h>
@@ -67,6 +73,23 @@ static char this_pgmname[50];
 
 struct pinentry pinentry;
 
+
+static const char *flavor_flag;
+
+/* Because gtk_init removes the --display arg from the command lines
+ * and our command line parser is called after gtk_init (so that it
+ * does not see gtk specific options) we don't have a way to get hold
+ * of the --display option.  Our solution is to remember --disable in
+ * the call to pinentry_have_display and set it then in our
+ * parser.  */
+static char *remember_display;
+
+/* Flag to remember whether a warning has been printed.  */
+#ifdef WITH_UTF8_CONVERSION
+static int lc_ctype_unknown_warning;
+#endif
+
+
 static void
 pinentry_reset (int use_defaults)
 {
@@ -75,6 +98,7 @@ pinentry_reset (int use_defaults)
   int grab = pinentry.grab;
   char *ttyname = pinentry.ttyname;
   char *ttytype = pinentry.ttytype;
+  char *ttyalert = pinentry.ttyalert;
   char *lc_ctype = pinentry.lc_ctype;
   char *lc_messages = pinentry.lc_messages;
   int allow_external_password_cache = pinentry.allow_external_password_cache;
@@ -86,6 +110,9 @@ pinentry_reset (int use_defaults)
   char *default_tt_visi = pinentry.default_tt_visi;
   char *default_tt_hide = pinentry.default_tt_hide;
   char *touch_file = pinentry.touch_file;
+  unsigned long owner_pid = pinentry.owner_pid;
+  int owner_uid = pinentry.owner_uid;
+  char *owner_host = pinentry.owner_host;
 
   /* These options are set from the command line.  Don't reset
      them.  */
@@ -109,6 +136,7 @@ pinentry_reset (int use_defaults)
     {
       free (pinentry.ttyname);
       free (pinentry.ttytype);
+      free (pinentry.ttyalert);
       free (pinentry.lc_ctype);
       free (pinentry.lc_messages);
       free (pinentry.default_ok);
@@ -119,6 +147,7 @@ pinentry_reset (int use_defaults)
       free (pinentry.default_tt_visi);
       free (pinentry.default_tt_hide);
       free (pinentry.touch_file);
+      free (pinentry.owner_host);
       free (pinentry.display);
     }
 
@@ -158,13 +187,15 @@ pinentry_reset (int use_defaults)
       pinentry.color_bg = PINENTRY_COLOR_DEFAULT;
       pinentry.color_so = PINENTRY_COLOR_DEFAULT;
       pinentry.color_so_bright = 0;
+
+      pinentry.owner_uid = -1;
     }
-  else
-    /* Restore the options.  */
+  else /* Restore the options.  */
     {
       pinentry.grab = grab;
       pinentry.ttyname = ttyname;
       pinentry.ttytype = ttytype;
+      pinentry.ttyalert = ttyalert;
       pinentry.lc_ctype = lc_ctype;
       pinentry.lc_messages = lc_messages;
       pinentry.allow_external_password_cache = allow_external_password_cache;
@@ -176,6 +207,9 @@ pinentry_reset (int use_defaults)
       pinentry.default_tt_visi = default_tt_visi;
       pinentry.default_tt_hide = default_tt_hide;
       pinentry.touch_file = touch_file;
+      pinentry.owner_pid = owner_pid;
+      pinentry.owner_uid = owner_uid;
+      pinentry.owner_host = owner_host;
 
       pinentry.debug = debug;
       pinentry.display = display;
@@ -204,9 +238,7 @@ pinentry_assuan_reset_handler (assuan_context_t ctx, char *line)
 
 
 
-static int lc_ctype_unknown_warning = 0;
-
-#if defined FALLBACK_CURSES || defined PINENTRY_CURSES || defined PINENTRY_GTK
+#ifdef WITH_UTF8_CONVERSION
 char *
 pinentry_utf8_to_local (const char *lc_ctype, const char *text)
 {
@@ -269,10 +301,13 @@ pinentry_utf8_to_local (const char *lc_ctype, const char *text)
     }
   return output_buf;
 }
+#endif /*WITH_UTF8_CONVERSION*/
+
 
 /* Convert TEXT which is encoded according to LC_CTYPE to UTF-8.  With
    SECURE set to true, use secure memory for the returned buffer.
    Return NULL on error. */
+#ifdef WITH_UTF8_CONVERSION
 char *
 pinentry_local_to_utf8 (char *lc_ctype, char *text, int secure)
 {
@@ -344,7 +379,7 @@ pinentry_local_to_utf8 (char *lc_ctype, char *text, int secure)
     }
   return output_buf;
 }
-#endif
+#endif /*WITH_UTF8_CONVERSION*/
 
 
 /* Copy TEXT or TEXTLEN to BUFFER and escape as required.  Return a
@@ -373,6 +408,146 @@ copy_and_escape (char *buffer, const void *text, size_t textlen)
   return p;
 }
 
+
+
+/* Return a malloced copy of the commandline for PID.  If this is not
+ * possible NULL is returned.  */
+#ifndef HAVE_W32_SYSTEM
+static char *
+get_cmdline (unsigned long pid)
+{
+  char buffer[200];
+  FILE *fp;
+  size_t i, n;
+
+  snprintf (buffer, sizeof buffer, "/proc/%lu/cmdline", pid);
+  buffer[sizeof buffer - 1] = 0;
+
+  fp = fopen (buffer, "rb");
+  if (!fp)
+    return NULL;
+  n = fread (buffer, 1, sizeof buffer - 1, fp);
+  if (n < sizeof buffer -1 && ferror (fp))
+    {
+      /* Some error occurred.  */
+      fclose (fp);
+      return NULL;
+    }
+  fclose (fp);
+  if (n == 0)
+    return NULL;
+  /* Arguments are delimited by Nuls.  We should do proper quoting but
+   * that can be a bit complicated, thus we simply replace the Nuls by
+   * spaces.  */
+  for (i=0; i < n; i++)
+    if (!buffer[i] && i < n-1)
+      buffer[i] = ' ';
+  buffer[i] = 0; /* Make sure the last byte is the string terminator.  */
+
+  return strdup (buffer);
+}
+#endif /*!HAVE_W32_SYSTEM*/
+
+
+/* Atomically ask the kernel for information about process PID.
+ * Return a malloc'ed copy of the process name as long as the process
+ * uid matches UID.  If it cannot determine that the process has uid
+ * UID, it returns NULL.
+ *
+ * This is not as informative as get_cmdline, but it verifies that the
+ * process does belong to the user in question.
+ */
+#ifndef HAVE_W32_SYSTEM
+static char *
+get_pid_name_for_uid (unsigned long pid, int uid)
+{
+  char buffer[400];
+  FILE *fp;
+  size_t end, n;
+  char *uidstr;
+
+  snprintf (buffer, sizeof buffer, "/proc/%lu/status", pid);
+  buffer[sizeof buffer - 1] = 0;
+
+  fp = fopen (buffer, "rb");
+  if (!fp)
+    return NULL;
+  n = fread (buffer, 1, sizeof buffer - 1, fp);
+  if (n < sizeof buffer -1 && ferror (fp))
+    {
+      /* Some error occurred.  */
+      fclose (fp);
+      return NULL;
+    }
+  fclose (fp);
+  if (n == 0)
+    return NULL;
+  /* Fixme: Is it specified that "Name" is always the first line?  For
+   * robustness I would prefer to have a real parser here. -wk  */
+  if (strncmp (buffer, "Name:\t", 6))
+    return NULL;
+  end = strcspn (buffer + 6, "\n") + 6;
+  buffer[end] = 0;
+
+  /* check that uid matches what we expect */
+  uidstr = strstr (buffer + end + 1, "\nUid:\t");
+  if (!uidstr)
+    return NULL;
+  if (atoi (uidstr + 6) != uid)
+    return NULL;
+
+  return strdup (buffer + 6);
+}
+#endif /*!HAVE_W32_SYSTEM*/
+
+
+/* Return a malloced string with the title.  The caller mus free the
+ * string.  If no title is available or the title string has an error
+ * NULL is returned.  */
+char *
+pinentry_get_title (pinentry_t pe)
+{
+  char *title;
+
+  if (pe->title)
+    title = strdup (pe->title);
+#ifndef HAVE_W32_SYSTEM
+  else if (pe->owner_pid)
+    {
+      char buf[200];
+      struct utsname utsbuf;
+      char *pidname = NULL;
+      char *cmdline = NULL;
+
+      if (pe->owner_host &&
+          !uname (&utsbuf) && utsbuf.nodename &&
+          !strcmp (utsbuf.nodename, pe->owner_host))
+        {
+          pidname = get_pid_name_for_uid (pe->owner_pid, pe->owner_uid);
+          if (pidname)
+            cmdline = get_cmdline (pe->owner_pid);
+        }
+
+      if (pe->owner_host && (cmdline || pidname))
+        snprintf (buf, sizeof buf, "[%lu]@%s (%s)",
+                  pe->owner_pid, pe->owner_host, cmdline ? cmdline : pidname);
+      else if (pe->owner_host)
+        snprintf (buf, sizeof buf, "[%lu]@%s",
+                  pe->owner_pid, pe->owner_host);
+      else
+        snprintf (buf, sizeof buf, "[%lu] <unknown host>",
+                  pe->owner_pid);
+      buf[sizeof buf - 1] = 0;
+      free (pidname);
+      free (cmdline);
+      title = strdup (buf);
+    }
+#endif /*!HAVE_W32_SYSTEM*/
+  else
+    title = strdup (this_pgmname);
+
+  return title;
+}
 
 
 /* Run a quality inquiry for PASSPHRASE of LENGTH.  (We need LENGTH
@@ -566,17 +741,54 @@ pinentry_init (const char *pgmname)
 int
 pinentry_have_display (int argc, char **argv)
 {
-#ifndef HAVE_W32CE_SYSTEM
-  const char *s;
+  int found = 0;
 
-  s = getenv ("DISPLAY");
-  if (s && *s)
-    return 1;
-#endif
   for (; argc; argc--, argv++)
-    if (!strcmp (*argv, "--display") || !strncmp (*argv, "--display=", 10))
-      return 1;
-  return 0;
+    {
+      if (!strcmp (*argv, "--display"))
+        {
+          if (argv[1] && !remember_display)
+            {
+              remember_display = strdup (argv[1]);
+              if (!remember_display)
+                {
+#ifndef HAVE_W32CE_SYSTEM
+                  fprintf (stderr, "%s: %s\n", this_pgmname, strerror (errno));
+#endif
+                  exit (EXIT_FAILURE);
+                }
+            }
+          found = 1;
+          break;
+        }
+      else if (!strncmp (*argv, "--display=", 10))
+        {
+          if (!remember_display)
+            {
+              remember_display = strdup (*argv+10);
+              if (!remember_display)
+                {
+#ifndef HAVE_W32CE_SYSTEM
+                  fprintf (stderr, "%s: %s\n", this_pgmname, strerror (errno));
+#endif
+                  exit (EXIT_FAILURE);
+                }
+            }
+          found = 1;
+          break;
+        }
+    }
+
+#ifndef HAVE_W32CE_SYSTEM
+  {
+    const char *s;
+    s = getenv ("DISPLAY");
+    if (s && *s)
+      found = 1;
+  }
+#endif
+
+  return found;
 }
 
 
@@ -695,6 +907,7 @@ pinentry_parse_opts (int argc, char *argv[])
                  "Grab keyboard only while window is focused"),
     ARGPARSE_s_u('W', "parent-wid", "Parent window ID (for positioning)"),
     ARGPARSE_s_s('c', "colors", "|STRING|Set custom colors for ncurses"),
+    ARGPARSE_s_s('a', "ttyalert", "|STRING|Set the alert mode (none, beep or flash)"),
     ARGPARSE_end()
   };
   ARGPARSE_ARGS pargs = { &argc, &argv, 0 };
@@ -786,12 +999,39 @@ pinentry_parse_opts (int argc, char *argv[])
 	  pinentry.timeout = pargs.r.ret_int;
 	  break;
 
+	case 'a':
+	  pinentry.ttyalert = strdup (pargs.r.ret_str);
+	  if (!pinentry.ttyalert)
+	    {
+#ifndef HAVE_W32CE_SYSTEM
+	      fprintf (stderr, "%s: %s\n", this_pgmname, strerror (errno));
+#endif
+	      exit (EXIT_FAILURE);
+	    }
+	  break;
+
         default:
           pargs.err = ARGPARSE_PRINT_WARNING;
 	  break;
         }
     }
+
+  if (!pinentry.display && remember_display)
+    {
+      pinentry.display = remember_display;
+      remember_display = NULL;
+    }
 }
+
+
+/* Set the optional flag used with getinfo. */
+void
+pinentry_set_flavor_flag (const char *string)
+{
+  flavor_flag = string;
+}
+
+
 
 
 static gpg_error_t
@@ -805,7 +1045,7 @@ option_handler (assuan_context_t ctx, const char *key, const char *value)
     pinentry.grab = 1;
   else if (!strcmp (key, "debug-wait"))
     {
-#ifndef HAVE_W32CE_SYSTEM
+#ifndef HAVE_W32_SYSTEM
       fprintf (stderr, "%s: waiting for debugger - my pid is %u ...\n",
 	       this_pgmname, (unsigned int) getpid());
       sleep (*value?atoi (value):5);
@@ -836,6 +1076,14 @@ option_handler (assuan_context_t ctx, const char *key, const char *value)
       if (!pinentry.ttytype)
 	return gpg_error_from_syserror ();
     }
+  else if (!strcmp (key, "ttyalert"))
+    {
+      if (pinentry.ttyalert)
+	free (pinentry.ttyalert);
+      pinentry.ttyalert = strdup (value);
+      if (!pinentry.ttyalert)
+	return gpg_error_from_syserror ();
+    }
   else if (!strcmp (key, "lc-ctype"))
     {
       if (pinentry.lc_ctype)
@@ -851,6 +1099,46 @@ option_handler (assuan_context_t ctx, const char *key, const char *value)
       pinentry.lc_messages = strdup (value);
       if (!pinentry.lc_messages)
 	return gpg_error_from_syserror ();
+    }
+  else if (!strcmp (key, "owner"))
+    {
+      long along;
+      char *endp;
+
+      free (pinentry.owner_host);
+      pinentry.owner_host = NULL;
+      pinentry.owner_uid = -1;
+      pinentry.owner_pid = 0;
+
+      errno = 0;
+      along = strtol (value, &endp, 10);
+      if (along && !errno)
+        {
+          pinentry.owner_pid = (unsigned long)along;
+          if (*endp)
+            {
+              errno = 0;
+              if (*endp == '/') { /* we have a uid */
+                endp++;
+                along = strtol (endp, &endp, 10);
+                if (along >= 0 && !errno)
+                  pinentry.owner_uid = (int)along;
+              }
+              if (endp)
+                {
+                  while (*endp == ' ')
+                    endp++;
+                  if (*endp)
+                    {
+                      pinentry.owner_host = strdup (endp);
+                      for (endp=pinentry.owner_host;
+                           *endp && *endp != ' '; endp++)
+                        ;
+                      *endp = 0;
+                    }
+                }
+            }
+        }
     }
   else if (!strcmp (key, "parent-wid"))
     {
@@ -1247,10 +1535,14 @@ cmd_getpin (assuan_context_t ctx, char *line)
       && ! pinentry.error)
     {
       char *password;
+      int give_up_on_password_store = 0;
 
       pinentry.tried_password_cache = 1;
 
-      password = password_cache_lookup (pinentry.keyinfo);
+      password = password_cache_lookup (pinentry.keyinfo, &give_up_on_password_store);
+      if (give_up_on_password_store)
+	pinentry.allow_external_password_cache = 0;
+
       if (password)
 	/* There is a cached password.  Try it.  */
 	{
@@ -1385,8 +1677,8 @@ cmd_confirm (assuan_context_t ctx, char *line)
   if (pinentry.close_button)
     assuan_write_status (ctx, "BUTTON_INFO", "close");
 
-  if (result)
-    return 0;
+  if (result > 0)
+    return 0; /* OK */
 
   if (pinentry.specific_err)
     {
@@ -1398,7 +1690,7 @@ cmd_confirm (assuan_context_t ctx, char *line)
     return gpg_error (GPG_ERR_LOCALE_PROBLEM);
 
   if (pinentry.one_button)
-    return 0;
+    return 0; /* OK */
 
   if (pinentry.canceled)
     return gpg_error (GPG_ERR_CANCELED);
@@ -1422,6 +1714,7 @@ cmd_message (assuan_context_t ctx, char *line)
      version     - Return the version of the program.
      pid         - Return the process id of the server.
      flavor      - Return information about the used pinentry flavor
+     ttyinfo     - Return DISPLAY and ttyinfo.
  */
 static gpg_error_t
 cmd_getinfo (assuan_context_t ctx, char *line)
@@ -1444,27 +1737,26 @@ cmd_getinfo (assuan_context_t ctx, char *line)
     }
   else if (!strcmp (line, "flavor"))
     {
-      const char *flags;
-
       if (!strncmp (this_pgmname, "pinentry-", 9) && this_pgmname[9])
         s = this_pgmname + 9;
       else
         s = this_pgmname;
 
-      if (0)
-        ;
-#ifdef INSIDE_EMACS
-      else if (pinentry_cmd_handler == emacs_cmd_handler)
-        flags = ":emacs";
-#endif
-#ifdef FALLBACK_CURSES
-      else if (pinentry_cmd_handler == curses_cmd_handler)
-        flags = ":curses";
-#endif
-      else
-        flags = "";
-
-      snprintf (buffer, sizeof buffer, "%s%s", s, flags);
+      snprintf (buffer, sizeof buffer, "%s%s%s",
+                s,
+                flavor_flag? ":":"",
+                flavor_flag? flavor_flag : "");
+      buffer[sizeof buffer -1] = 0;
+      rc = assuan_send_data (ctx, buffer, strlen (buffer));
+      /* if (!rc) */
+      /*   rc = assuan_write_status (ctx, "FEATURES", "tabbing foo bar"); */
+    }
+  else if (!strcmp (line, "ttyinfo"))
+    {
+      snprintf (buffer, sizeof buffer, "%s %s %s",
+                pinentry.ttyname? pinentry.ttyname : "-",
+                pinentry.ttytype? pinentry.ttytype : "-",
+                pinentry.display? pinentry.display : "-" );
       buffer[sizeof buffer -1] = 0;
       rc = assuan_send_data (ctx, buffer, strlen (buffer));
     }
