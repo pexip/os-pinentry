@@ -1,3 +1,9 @@
+pinentry (1.1.0-2pexip1) pexip; urgency=medium
+
+  * Migrate to Buster
+
+ -- Vincent Sanders <vince@pexip.com>  Sat, 29 Feb 2020 21:21:24 +0000
+
 pinentry (1.1.0-2) unstable; urgency=medium
 
   * use DEP-14 branch naming
