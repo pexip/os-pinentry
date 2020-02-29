@@ -15,8 +15,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
+# along with this program; if not, see <https://www.gnu.org/licenses/>.
+# SPDX-License-Identifier: GPL-2.0+
 
 # (Process this file with autoconf to produce a configure script.)
 AC_PREREQ(2.69)
@@ -26,7 +26,7 @@ min_automake_version="1.14"
 # (git tag -s pinentry-n.m.k) and run "./autogen.sh --force".  Please
 # bump the version number immediately after the release, do another
 # commit, and a push so that the git magic is able to work.
-m4_define(mym4_version, [1.0.0])
+m4_define(mym4_version, [1.1.0])
 
 # Below is m4 magic to extract and compute the git revision number,
 # the decimalized short revision number, a beta version string and a
@@ -85,6 +85,7 @@ AC_PROG_RANLIB
 # for Qt and autoconf does does not allow that.
 AC_PROG_CXX
 AC_PROG_LN_S
+PKG_PROG_PKG_CONFIG
 AC_CHECK_TOOL(WINDRES, windres, :)
 AC_CHECK_PROGS(GITLOG_TO_CHANGELOG, gitlog-to-changelog,
                [build-aux/gitlog-to-changelog])
@@ -428,62 +429,36 @@ AC_ARG_ENABLE(pinentry-gnome3,
             AC_HELP_STRING([--enable-pinentry-gnome3], [build GNOME 3 pinentry]),
             pinentry_gnome_3=$enableval, pinentry_gnome_3=maybe)
 
-dnl check for pkg-config
-if test "$pinentry_gtk_2" != "no" -o "$pinentry_gnome_3" != "no"; then
-        AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
-	if test x"${PKG_CONFIG}" = xno ; then
-		pinentry_gtk_2=no
-		pinentry_gnome_3=no
-	fi
-fi
-
 dnl check if the module gtk+-2.0 exists
 if test "$pinentry_gtk_2" != "no"; then
-	AC_MSG_CHECKING([for gtk+-2])
-	"${PKG_CONFIG}" --exists gtk+-2.0
-	if test $? -ne 0 ; then
-		AC_MSG_RESULT([no])
-		AC_MSG_WARN([pkg-config could not find the module gtk+-2.0])
-		pinentry_gtk_2=no
-	else
-		AC_MSG_RESULT([yes])
-		AC_MSG_CHECKING([gtk+-2 version >= 2.4.0])
-		modvers=`"${PKG_CONFIG}" --modversion gtk+-2.0`
-		AC_MSG_RESULT([$modvers])
-		"${PKG_CONFIG}" --atleast-version=2.4.0 gtk+-2.0
-		if test $? -ne 0 ; then
-			AC_MSG_WARN([building GTK+-2 pinentry disabled])
+	PKG_CHECK_MODULES(
+		GTK2,
+		[gtk+-2.0 >= 2.4.0],
+		[
+			test "$pinentry_gtk_2" != "no" && pinentry_gtk_2=yes
+			test "$pinentry_gnome_3" != "no" && pinentry_gnome_3=yes
+		],
+		[
+			AC_MSG_WARN([pkg-config could not find the module gtk+-2.0])
 			pinentry_gtk_2=no
-		else
-			GTK2CFLAGS=`"${PKG_CONFIG}" --cflags gtk+-2.0`
-			GTK2LIBS=`"${PKG_CONFIG}" --libs gtk+-2.0`
-			AC_SUBST(GTK2CFLAGS)
-			AC_SUBST(GTK2LIBS)
-			if test "$pinentry_gtk_2" != "no"
-			then
-			  pinentry_gtk_2=yes
-			fi
-		fi
-	fi
+		]
+	)
 fi
 AM_CONDITIONAL(BUILD_PINENTRY_GTK_2, test "$pinentry_gtk_2" = "yes")
 
 if test "$pinentry_gnome_3" != "no"; then
-	AC_MSG_CHECKING([for gcr])
-	"${PKG_CONFIG}" --exists gcr-base-3
-	if test $? -ne 0 ; then
-		AC_MSG_RESULT([no])
-		AC_MSG_WARN([pkg-config could not find the module gcr-base-3])
-		pinentry_gnome_3=no
-	else
-		AC_MSG_RESULT([yes])
-		GNOME3CFLAGS=`"${PKG_CONFIG}" --cflags gcr-base-3`
-		GNOME3LIBS=`"${PKG_CONFIG}" --libs gcr-base-3`
-		AC_SUBST(GNOME3CFLAGS)
-		AC_SUBST(GNOME3LIBS)
-		AC_DEFINE(GCR_API_SUBJECT_TO_CHANGE, 1, [Nod nod])
-		pinentry_gnome_3=yes
-	fi
+	PKG_CHECK_MODULES(
+		GNOME3,
+		[gcr-3,gcr-base-3],
+		[
+			pinentry_gnome_3=yes
+			AC_DEFINE(GCR_API_SUBJECT_TO_CHANGE, 1, [Nod nod])
+		],
+		[
+			AC_MSG_WARN([pkg-config could not find the module gcr-3,gcr-base-3])
+			pinentry_gnome_3=no
+		]
+	)
 fi
 
 AM_CONDITIONAL(BUILD_PINENTRY_GNOME_3, test "$pinentry_gnome_3" = "yes")
@@ -496,36 +471,17 @@ AC_ARG_ENABLE(libsecret,
 	    [optionally cache passphrases using libsecret]),
             libsecret=$enableval, libsecret=maybe)
 
-dnl check for pkg-config
-if test "$libsecret" != "no" -o "$pinentry-qt" != "no"; then
-        AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
-  if test x"${PKG_CONFIG}" = xno ; then
-    if test "$pinentry_qt" = "yes"; then
-      AC_MSG_ERROR([[
-                    ***
-                    *** pkg-config is required to find the Qt libraries for pinentry-qt
-                    ***]])
-    else
-      pinentry_qt=no
-    fi
-    libsecret=no
-  fi
-fi
-
 dnl check if the module libsecret exists
 if test "$libsecret" != "no"; then
-	AC_MSG_CHECKING([for libsecret])
-	"${PKG_CONFIG}" --exists 'libsecret-1'
-	if test $? -ne 0 ; then
-		AC_MSG_RESULT([no])
-		AC_MSG_WARN([pkg-config could not find the modules libsecret-1])
-		libsecret=no
-	else
-		AC_MSG_RESULT([yes])
-		LIBSECRET_CFLAGS=`"${PKG_CONFIG}" --cflags 'libsecret-1'`
-		LIBSECRET_LIBS=`"${PKG_CONFIG}" --libs 'libsecret-1'`
-		libsecret=yes
-	fi
+	PKG_CHECK_MODULES(
+		LIBSECRET,
+		[libsecret-1],
+		[libsecret=yes],
+		[
+			AC_MSG_WARN([pkg-config could not find the module libsecret-1])
+			libsecret=no
+		]
+	)
 fi
 AM_CONDITIONAL(BUILD_WITH_LIBSECRET, test "$libsecret" = "yes")
 if test "$libsecret" = "yes"; then
@@ -580,6 +536,42 @@ if test "$pinentry_qt" = "yes"; then
   fi
 fi
 
+dnl
+dnl Check for TQt pinentry program.
+dnl
+AC_ARG_ENABLE(pinentry-tqt,
+	      AC_HELP_STRING([--enable-pinentry-tqt], [build tqt pinentry]),
+	      pinentry_tqt=$enableval, pinentry_tqt=no)
+
+if test "$pinentry_tqt" != "no"; then
+
+  if test "$pinentry_qt" = "yes"; then
+    AC_MSG_ERROR([[
+    ***
+    *** Building both Qt and TQt pinentries is not supported.
+    *** Use --disable-pinentry-qt if you want the TQt pinentry.
+    ***]])
+  fi
+
+  PKG_CHECK_MODULES(PINENTRY_TQT, tqt,
+                    have_tqt_libs=yes,
+                    [PKG_CHECK_MODULES(PINENTRY_TQT, tqt-mt,
+                     have_tqt_libs=yes, have_tqt_libs=no)])
+
+  if test "$have_tqt_libs" = "yes"; then
+    AC_CHECK_TOOL([TQT_MOC], tqmoc, "no")
+  fi
+
+  if test "$have_tqt_libs" = "yes" -a "$TQT_MOC" != "no"; then
+    pinentry_tqt=yes
+  else
+    AC_MSG_WARN([TQt is not found])
+    pinentry_tqt=no
+  fi
+
+fi
+AM_CONDITIONAL(BUILD_PINENTRY_TQT, test "$pinentry_tqt" = "yes")
+
 #
 # Check whether we should build the W32 pinentry.  This is actually
 # the simplest check as we do this only for that platform.
@@ -588,6 +580,42 @@ pinentry_w32=no
 test $have_w32_system = yes && pinentry_w32=yes
 AM_CONDITIONAL(BUILD_PINENTRY_W32, test "$pinentry_w32" = "yes")
 
+dnl
+dnl Check for FLTK pinentry program.
+dnl
+AC_ARG_ENABLE(pinentry-fltk,
+    AC_HELP_STRING([--enable-pinentry-fltk], [build FLTK 1.3 pinentry]),
+           pinentry_fltk=$enableval, pinentry_fltk=maybe)
+
+dnl check for fltk-config
+if test "$pinentry_fltk" != "no"; then
+   AC_PATH_PROG(FLTK_CONFIG, fltk-config, no)
+   if test x"${FLTK_CONFIG}" = xno ; then
+       AC_MSG_WARN([fltk-config is not found])
+       pinentry_fltk=no
+   fi
+fi
+
+dnl check for FLTK libraries and set flags
+if test "$pinentry_fltk" != "no"; then
+   AC_MSG_CHECKING([for FLTK 1.3])
+   FLTK_VERSION=`${FLTK_CONFIG} --api-version`
+   if test ${FLTK_VERSION} != "1.3" ; then
+       AC_MSG_RESULT([no])
+       AC_MSG_WARN([FLTK 1.3 not found (available $FLTK_VERSION)])
+       pinentry_fltk=no
+   else
+       AC_MSG_RESULT([yes])
+       FLTKCFLAGS=`${FLTK_CONFIG} --cflags`
+       FLTKCXXFLAGS=`${FLTK_CONFIG} --cxxflags`
+       FLTKLIBS=`${FLTK_CONFIG} --ldflags`
+       AC_SUBST(FLTKCFLAGS)
+       AC_SUBST(FLTKCXXFLAGS)
+       AC_SUBST(FLTKLIBS)
+       pinentry_fltk=yes
+   fi
+fi
+AM_CONDITIONAL(BUILD_PINENTRY_FLTK, test "$pinentry_fltk" = "yes")
 
 # Figure out the default pinentry.  We are very conservative here.
 # Please change the order only after verifying that the preferred
@@ -611,7 +639,15 @@ else
           if test "$pinentry_w32" = "yes"; then
             PINENTRY_DEFAULT=pinentry-w32
           else
-            AC_MSG_ERROR([[No pinentry enabled.]])
+            if test "$pinentry_fltk" = "yes"; then
+              PINENTRY_DEFAULT=pinentry-fltk
+            else
+              if test "$pinentry_tqt" = "yes"; then
+                PINENTRY_DEFAULT=pinentry-tqt
+              else
+                AC_MSG_ERROR([[No pinentry enabled.]])
+              fi
+            fi
           fi
         fi
       fi
@@ -689,7 +725,9 @@ emacs/Makefile
 gtk+-2/Makefile
 gnome3/Makefile
 qt/Makefile
+tqt/Makefile
 w32/Makefile
+fltk/Makefile
 doc/Makefile
 Makefile
 ])
@@ -709,7 +747,9 @@ AC_MSG_NOTICE([
 	GTK+-2 Pinentry ..: $pinentry_gtk_2
 	GNOME 3 Pinentry .: $pinentry_gnome_3
 	Qt Pinentry ......: $pinentry_qt $pinentry_qt_lib_version
+	TQt Pinentry .....: $pinentry_tqt
 	W32 Pinentry .....: $pinentry_w32
+	FLTK Pinentry ....: $pinentry_fltk
 
 	Fallback to Curses: $fallback_curses
 	Emacs integration : $inside_emacs

@@ -43,9 +43,16 @@ the preferred alternative overall, but if you prefer to use, say,
 pinentry-gtk-2, then you need to set it up explicitly (or manually
 alter the alternatives system; the possibilities abound).)
 
+Note that while pinentry-curses will work in some cases in a
+non-graphical environment, it is likely to fail when used while
+sharing a tty with a terminal-intensive program like emacs.  If a
+graphical pinentry isn't possible, the recommended workaround is to
+have a curses-based pinentry attached to a separate pseudoterminal.
+(see https://dev.gnupg.org/T3217 for more details)
+
 Note that for the complete system to work, you also need to configure
 GnuPG to use the gpg-agent to get the pass phrases, and you need to
 configure your e-mail client to use GnuPG.  These issues are not
 covered here.
 
- -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>, Sun, 12 Apr 2015 18:41:18 -0400
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>, Sun,  6 Aug 2017 23:52:43 -0400

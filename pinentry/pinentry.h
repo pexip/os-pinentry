@@ -1,20 +1,21 @@
 /* pinentry.h - The interface for the PIN entry support library.
-   Copyright (C) 2002, 2003, 2010, 2015 g10 Code GmbH
-
-   This file is part of PINENTRY.
-
-   PINENTRY is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   PINENTRY is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * Copyright (C) 2002, 2003, 2010, 2015 g10 Code GmbH
+ *
+ * This file is part of PINENTRY.
+ *
+ * PINENTRY is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * PINENTRY is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <https://www.gnu.org/licenses/>.
+ * SPDX-License-Identifier: GPL-2.0+
  */
 
 #ifndef PINENTRY_H
@@ -75,6 +76,8 @@ struct pinentry
   char *ttyname;
   /* The type of the terminal.  (Assuan: "OPTION ttytype TTYTYPE".)  */
   char *ttytype;
+  /* Set the alert mode (none, beep or flash).  */
+  char *ttyalert;
   /* The LC_CTYPE value for the terminal.  (Assuan: "OPTION lc-ctype
      LC_CTYPE".)  */
   char *lc_ctype;
@@ -91,6 +94,18 @@ struct pinentry
   /* True if caller should grab the keyboard.  (Assuan: "OPTION grab"
      or "OPTION no-grab".)  */
   int grab;
+
+  /* The PID of the owner or 0 if not known.  The owner is the process
+   * which actually triggered the the pinentry.  For example gpg.  */
+  unsigned long owner_pid;
+
+  /* The numeric uid (user ID) of the owner process or -1 if not
+   * known. */
+  int owner_uid;
+
+  /* The malloced hostname of the owner or NULL.  */
+  char *owner_host;
+
   /* The window ID of the parent window over which the pinentry window
      should be displayed.  (Assuan: "OPTION parent-wid WID".)  */
   int parent_wid;
@@ -248,6 +263,7 @@ char *pinentry_utf8_to_local (const char *lc_ctype, const char *text);
    Return NULL on error. */
 char *pinentry_local_to_utf8 (char *lc_ctype, char *text, int secure);
 
+char *pinentry_get_title (pinentry_t pe);
 
 /* Run a quality inquiry for PASSPHRASE of LENGTH. */
 int pinentry_inq_quality (pinentry_t pin,
@@ -274,6 +290,10 @@ int pinentry_have_display (int argc, char **argv);
 /* Parse the command line options.  May exit the program if only help
    or version output is requested.  */
 void pinentry_parse_opts (int argc, char *argv[]);
+
+/* Set the optional flag used with getinfo. */
+void pinentry_set_flavor_flag (const char *string);
+
 
 
 /* The caller must define this variable to process assuan commands.  */

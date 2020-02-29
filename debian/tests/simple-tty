@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+
+# Daniel Kahn Gillmor <dkg@fifthhorseman.net>
+
+# put pinentry-tty through its paces on an otherwise clean
+# pseudoterminal.
+
+import posix
+import subprocess
+import codecs
+
+# block on pinentry verification:
+def isok(pinentry):
+    l = pinentry.stdout.readline()
+    if not l.startswith('OK'):
+        raise Exception("notok: " + l if l else '<None>')
+
+
+(master, pty) = posix.openpty()
+# depends on /proc!
+ptyname = posix.readlink("/proc/self/fd/%d"%(pty))
+
+p = subprocess.Popen(['pinentry-tty'],
+                     shell=False,
+                     stdin=subprocess.PIPE,
+                     stdout=subprocess.PIPE,
+                     universal_newlines=True,
+                     bufsize=1)
+isok(p)
+
+p.stdin.write("option ttyname %s\n"%(ptyname))
+isok(p)
+
+p.stdin.write("setprompt foo bar\n")
+isok(p)
+
+p.stdin.write("getpin\n")
+p.stdin.flush()
+
+prompt = codecs.decode(posix.read(master, 1000))
+print("---begin pinentry prompt---")
+print(prompt)
+print("---end pinentry prompt---")
+
+posix.write(master, codecs.encode("abc123\n"))
+
+answer = p.stdout.readline()
+if answer.strip() != "D abc123":
+    raise Exception("wrongpass" + answer)
+isok(p)
+
+p.stdin.write("bye\n")
+isok(p)
+
+ret = p.wait()
+if ret:
+    raise Exception("pinentry terminated wrong: %d!"%(ret))
+
+posix.close(pty)
+posix.close(master)

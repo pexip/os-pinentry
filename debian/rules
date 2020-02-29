@@ -2,11 +2,11 @@
 
 QT_SELECT = qt5
 export QT_SELECT
-SHARED_CONFIGS = --disable-rpath --without-libcap --disable-pinentry-emacs --disable-inside-emacs --enable-fallback-curses
+SHARED_CONFIGS = --disable-rpath --without-libcap --disable-pinentry-emacs --disable-inside-emacs --enable-fallback-curses --disable-pinentry-tqt
 export DEB_BUILD_MAINT_OPTIONS = hardening=+bindnow
 
 %:
-	dh $@ --with autoreconf
+	dh $@
 
 override_dh_auto_configure:
 	dh_auto_configure --builddirectory=build-no-libsecret -- \
@@ -14,12 +14,14 @@ override_dh_auto_configure:
 		--enable-pinentry-tty \
 		--enable-pinentry-curses \
 		--enable-pinentry-qt \
+		--enable-pinentry-fltk \
 		--disable-pinentry-gtk2 \
 		--disable-pinentry-gnome3
 	dh_auto_configure -- $(SHARED_CONFIGS) \
 		--disable-pinentry-tty \
 		--disable-pinentry-curses \
 		--disable-pinentry-qt \
+		--disable-pinentry-fltk \
 		--enable-pinentry-gtk2 \
 		--enable-pinentry-gnome3
 
