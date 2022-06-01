@@ -1,5 +1,6 @@
 0001-avoid-self-describing-as-a-beta.patch
-0007-gtk2-When-X11-input-grabbing-fails-try-again-over-0..patch
-0003-Fix-format-string-errors-in-fltk-pinentry.patch
+0002-gtk2-When-X11-input-grabbing-fails-try-again-over-0..patch
+0003-fltk-Fix-formatting-escapes.patch
 0004-gnome3-Use-the-default-dbus-timeout-when-checking-fo.patch
 0005-gnome3-correctly-detect-when-no-GNOME-screenlock-exi.patch
+0006-qt-Fix-use-of-dangling-pointer-in-QApplication.patch

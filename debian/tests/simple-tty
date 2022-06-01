@@ -8,6 +8,7 @@
 import posix
 import subprocess
 import codecs
+import time
 
 # block on pinentry verification:
 def isok(pinentry):
@@ -36,6 +37,9 @@ isok(p)
 
 p.stdin.write("getpin\n")
 p.stdin.flush()
+
+# avoid failures on laggy build daemons
+time.sleep(2.0)
 
 prompt = codecs.decode(posix.read(master, 1000))
 print("---begin pinentry prompt---")

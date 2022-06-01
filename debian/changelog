@@ -1,3 +1,37 @@
+pinentry (1.1.0-4) unstable; urgency=medium
+
+  [ Peter Eisentraut ]
+  * Remove myself from uploaders
+
+  [ Daniel Kahn Gillmor ]
+  * make pinentry-doc multiarch: foreign
+  * refresh patches
+  * d/tests/simple-tty: introduce a delay in the test to avoid a race
+  * move to dh 13
+  * Standards-Version: bump to 4.5.0 (no changes needed)
+
+  [ Yuriy M. Kaminskiy ]
+  * Mark all pinentry packages as Multi-arch: foreign (Closes: #936048)
+
+  [ Daniel Kahn Gillmor ]
+  * drop transitional pinentry-qt4 package (Closes: #940754)
+  * update README.Debian
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Fri, 08 May 2020 13:10:05 -0400
+
+pinentry (1.1.0-3) unstable; urgency=medium
+
+  * Standards-Version: bump to 4.4.0 (no changes needed)
+  * move to debhelper 12
+  * apply upstream qt bugfix
+  * ship the version of pinentry.info installed (not from the source)
+  * avoid spuriously flagging /usr/bin/pinentry as not-installed
+  * drop shlibs:Depends from Arch: all pinentry-{doc,qt4} packages
+  * use dh_missing --fail-missing
+  * minimize debian/upstream/signing-key.asc
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Fri, 26 Jul 2019 20:37:37 -0400
+
 pinentry (1.1.0-2pexip2) pexip; urgency=medium
 
   * Rebuild in buster environment

@@ -4,10 +4,9 @@ Priority: optional
 Maintainer: Pexip AS <packaging@pexip.com>
 XSBC-Pexip-Original-Maintainer: Debian GnuPG Maintainers <pkg-gnupg-maint@lists.alioth.debian.org>
 XSBC-Pexip-Original-Uploaders:
- Peter Eisentraut <petere@debian.org>,
  Daniel Kahn Gillmor <dkg@fifthhorseman.net>,
 Build-Depends:
- debhelper (>= 11~),
+ debhelper-compat (= 13),
  libassuan-dev (>= 2.1.0),
  libfltk1.3-dev,
  libgcr-3-dev,
@@ -21,7 +20,7 @@ Build-Depends:
  pkg-config,
  qtbase5-dev,
  texinfo,
-Standards-Version: 4.3.0
+Standards-Version: 4.5.0
 Homepage: https://www.gnupg.org/related_software/pinentry/
 Vcs-Git: https://salsa.debian.org/debian/pinentry.git
 Vcs-Browser: https://salsa.debian.org/debian/pinentry
@@ -30,6 +29,7 @@ XS-Pexip-Upstream: http://deb.debian.org/debian/ bullseye
 
 Package: pinentry-curses
 Architecture: any
+Multi-Arch: foreign
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -58,6 +58,7 @@ Description: curses-based PIN or pass-phrase entry dialog for GnuPG
 
 Package: pinentry-tty
 Architecture: any
+Multi-Arch: foreign
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -86,6 +87,7 @@ Description: minimal dumb-terminal PIN or pass-phrase entry for GnuPG
 
 Package: pinentry-qt
 Architecture: any
+Multi-Arch: foreign
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -107,19 +109,6 @@ Description: Qt-based PIN or pass-phrase entry dialog for GnuPG
  If the X Window System is not active then an alternative text-mode
  dialog will be used.  There are sibling packages that implement PIN
  entry dialogs using other tool kits.
-
-Package: pinentry-qt4
-Architecture: all
-Depends:
- pinentry-qt (>= ${binary:Version}),
- ${misc:Depends},
- ${shlibs:Depends},
-Description: Qt-based PIN or pass-phrase entry dialog for GnuPG (transitional dummy package)
- Pinentry is a program for secure entry of PINs and passphrases, from
- the GnuPG project.
- .
- This package installs a symbolic link from pinentry-qt4 to
- pinentry-qt.  You should switch to using pinentry-qt instead.
 
 Package: pinentry-gtk2
 Architecture: any
@@ -150,6 +139,7 @@ Description: GTK+-2-based PIN or pass-phrase entry dialog for GnuPG
 
 Package: pinentry-fltk
 Architecture: any
+Multi-Arch: foreign
 Depends:
  ${misc:Depends},
  ${shlibs:Depends},
@@ -177,6 +167,7 @@ Description: FLTK-based PIN or pass-phrase entry dialog for GnuPG
 
 Package: pinentry-gnome3
 Architecture: any
+Multi-Arch: foreign
 Depends:
  gcr,
  ${misc:Depends},
@@ -208,10 +199,10 @@ Description: GNOME 3 PIN or pass-phrase entry dialog for GnuPG
 
 Package: pinentry-doc
 Section: doc
+Multi-Arch: foreign
 Architecture: all
 Depends:
  ${misc:Depends},
- ${shlibs:Depends},
 Suggests:
  pinentry-curses,
  pinentry-gnome3,
