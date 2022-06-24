@@ -1,3 +1,9 @@
+pinentry (1.1.0-4pexip2) pexip-bullseye; urgency=medium
+
+  * Main bullseye build
+
+ -- Mark Hymers <mark.hymers@pexip.com>  Fri, 24 Jun 2022 14:04:08 +0100
+
 pinentry (1.1.0-4pexip1) pexip; urgency=medium
 
   * Initial bullseye build
