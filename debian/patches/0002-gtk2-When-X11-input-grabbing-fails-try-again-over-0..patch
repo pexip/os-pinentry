@@ -19,10 +19,10 @@ Signed-off-by: Daniel Kahn Gillmor <dkg@fifthhorseman.net>
  1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/gtk+-2/pinentry-gtk-2.c b/gtk+-2/pinentry-gtk-2.c
-index c803628..6bd1eed 100644
+index 6d626cc..f329910 100644
 --- a/gtk+-2/pinentry-gtk-2.c
 +++ b/gtk+-2/pinentry-gtk-2.c
-@@ -164,7 +164,7 @@ static int
+@@ -161,7 +161,7 @@ static int
  grab_keyboard (GtkWidget *win, GdkEvent *event, gpointer data)
  {
    GdkGrabStatus err;
@@ -31,7 +31,7 @@ index c803628..6bd1eed 100644
    (void)data;
  
    if (! pinentry->grab)
-@@ -173,7 +173,8 @@ grab_keyboard (GtkWidget *win, GdkEvent *event, gpointer data)
+@@ -170,7 +170,8 @@ grab_keyboard (GtkWidget *win, GdkEvent *event, gpointer data)
    do
      err = gdk_keyboard_grab (gtk_widget_get_window (win),
                               FALSE, gdk_event_get_time (event));
@@ -41,7 +41,7 @@ index c803628..6bd1eed 100644
  
    if (err)
      {
-@@ -197,7 +198,7 @@ grab_pointer (GtkWidget *win, GdkEvent *event, gpointer data)
+@@ -194,7 +195,7 @@ grab_pointer (GtkWidget *win, GdkEvent *event, gpointer data)
  {
    GdkGrabStatus err;
    GdkCursor *cursor;
@@ -50,7 +50,7 @@ index c803628..6bd1eed 100644
    (void)data;
  
    /* Change the cursor for the duration of the grab to indicate that
-@@ -219,7 +220,8 @@ grab_pointer (GtkWidget *win, GdkEvent *event, gpointer data)
+@@ -216,7 +217,8 @@ grab_pointer (GtkWidget *win, GdkEvent *event, gpointer data)
                              cursor,
                              gdk_event_get_time (event));
    while (tries++ < max_tries && (err == GDK_GRAB_NOT_VIEWABLE

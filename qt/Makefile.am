@@ -22,7 +22,9 @@
 
 bin_PROGRAMS = pinentry-qt
 
-EXTRA_DIST = document-encrypt.png pinentry.qrc
+EXTRA_DIST = pinentryrc.qrc
+
+SUBDIRS = icons
 
 
 if FALLBACK_CURSES
@@ -40,19 +42,34 @@ AM_CPPFLAGS = $(COMMON_CFLAGS) \
 AM_CXXFLAGS = $(PINENTRY_QT_CFLAGS)
 pinentry_qt_LDADD = \
 	../pinentry/libpinentry.a $(top_builddir)/secmem/libsecmem.a \
-	$(COMMON_LIBS) $(PINENTRY_QT_LIBS) $(libcurses) $(LIBCAP)
+	$(COMMON_LIBS) $(PINENTRY_QT_LIBS) $(libcurses)
+pinentry_qt_LDFLAGS = $(PINENTRY_QT_LDFLAGS)
 
+if BUILD_PINENTRY_QT
 BUILT_SOURCES = \
-	pinentryconfirm.moc pinentrydialog.moc
+	pinentryconfirm.moc pinentrydialog.moc pinlineedit.moc capslock.moc \
+	pinentryrc.cpp
+endif
 
-CLEANFILES = \
-	pinentryconfirm.moc pinentrydialog.moc
+CLEANFILES = $(BUILT_SOURCES)
+
+if HAVE_W32_SYSTEM
+pinentry_qt_platform_SOURCES = capslock_win.cpp
+else
+pinentry_qt_platform_SOURCES = capslock_unix.cpp
+endif
 
 pinentry_qt_SOURCES = pinentrydialog.h pinentrydialog.cpp \
-	main.cpp qrc_pinentry.cpp pinentryconfirm.cpp pinentryconfirm.h
+	main.cpp pinentryconfirm.cpp pinentryconfirm.h \
+	pinlineedit.h pinlineedit.cpp capslock.cpp capslock.h capslock_p.h \
+	pinentry_debug.cpp pinentry_debug.h util.h accessibility.cpp \
+	accessibility.h qti18n.cpp pinentryrc.qrc \
+	$(pinentry_qt_platform_SOURCES)
 
-nodist_pinentry_qt_SOURCES = \
-	pinentryconfirm.moc pinentrydialog.moc
+nodist_pinentry_qt_SOURCES = $(BUILT_SOURCES)
 
 .h.moc:
 	$(MOC) `test -f '$<' || echo '$(srcdir)/'`$< -o $@
+
+pinentryrc.cpp: pinentryrc.qrc
+	$(RCC) `test -f '$<' || echo '$(srcdir)/'`$< -o $@

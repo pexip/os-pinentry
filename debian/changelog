@@ -1,3 +1,49 @@
+pinentry (1.2.1-1) unstable; urgency=medium
+
+  * new upstream release
+  * ensure that qt4 remains disabled
+  * remove patches/0003-qt-fix-floating-dialog-under-sway.patch
+  * pinentry-gtk2: drop stale NEWS entry (see #1021502)
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Tue, 18 Oct 2022 10:52:33 -0400
+
+pinentry (1.2.0-2) unstable; urgency=medium
+
+  * Fix --lc-ctype in manpages (Closes: #979412)
+  * wrap-and-sort -ast
+  * qt: fix floating dialog under sway (Closes: #1013318)
+  * Standards-Version: bump to 4.6.1 (no changes needed).
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Fri, 24 Jun 2022 22:38:56 -0400
+
+pinentry (1.2.0-1) unstable; urgency=medium
+
+  * New upstream release to unstable
+  * d/gbp.conf: use DEP-14 branch naming (return to unstable)
+  * standards version: bump to 4.6.0 (no changes needed)
+  * ensure qt5 works on wayland
+  * refresh version info patch
+  * Drop fix for rpath, fixed upstream
+  * drop tweaks for EFL configuration check
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Thu, 28 Apr 2022 08:33:01 -0400
+
+pinentry (1.1.1-1) experimental; urgency=medium
+
+  * new upstream release 1.1.1
+  * dh 13 already does --fail-missing by default
+  * drop --as-needed linking flag, bullseye does this by default
+  * move to debian/sid branch for packaging
+  * update upstream signing keys
+  * drop patches already upstream
+  * standards-version: bump to 4.5.1 (no changes needed)
+  * refresh patches
+  * avoid rpath for pinentry-qt
+  * clean up use of pkg-config for EFL pinentry
+  * avoid trying to build pinentry-efl
+
+ -- Daniel Kahn Gillmor <dkg@fifthhorseman.net>  Wed, 17 Feb 2021 15:43:06 -0500
+
 pinentry (1.1.0-4) unstable; urgency=medium
 
   [ Peter Eisentraut ]

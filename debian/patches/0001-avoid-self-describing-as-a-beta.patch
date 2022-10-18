@@ -13,16 +13,24 @@ See discussion at:
 
  http://lists.gnupg.org/pipermail/gnupg-devel/2014-November/029065.html
 ---
- autogen.sh   | 4 ++--
- configure.ac | 4 +---
- 2 files changed, 3 insertions(+), 5 deletions(-)
+ autogen.sh | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/autogen.sh b/autogen.sh
-index 37edfc6..2dff9cd 100755
+index 9b36158..f381d48 100755
 --- a/autogen.sh
 +++ b/autogen.sh
-@@ -228,8 +228,8 @@ if [ "$myhost" = "find-version" ]; then
-       rvd=$((0x$(echo ${rev} | head -c 4)))
+@@ -249,7 +249,7 @@ if [ "$myhost" = "find-version" ]; then
+     fi
+ 
+     beta=no
+-    if [ -e .git ]; then
++    if false; then
+       ingit=yes
+       tmp=$(git describe --match "${matchstr1}" --long 2>/dev/null)
+       tmp=$(echo "$tmp" | sed s/^"$package"//)
+@@ -265,8 +265,8 @@ if [ "$myhost" = "find-version" ]; then
+       rvd=$((0x$(echo ${rev} | dd bs=1 count=4 2>/dev/null)))
      else
        ingit=no
 -      beta=yes
@@ -32,18 +40,12 @@ index 37edfc6..2dff9cd 100755
        rev="0000000"
        rvd="0"
      fi
-diff --git a/configure.ac b/configure.ac
-index c1b66d6..05a902a 100644
---- a/configure.ac
-+++ b/configure.ac
-@@ -36,9 +36,7 @@ m4_define([mym4_revision], m4_esyscmd([git branch -v 2>/dev/null \
-           | awk '/^\* / {printf "%s",$3}']))
- m4_define([mym4_revision_dec],
-           m4_esyscmd_s([echo $((0x$(echo ]mym4_revision[|head -c 4)))]))
--m4_define([mym4_betastring],
--          m4_esyscmd_s([git describe --match 'pinentry-[0-9].[0-9].*[0-9]' \
--                           --long|  awk -F- '$3!=0{print"-beta"$3}']))
-+m4_define([mym4_betastring],[])
- m4_define([mym4_isgit],m4_if(mym4_betastring,[],[no],[yes]))
- m4_define([mym4_full_version],[mym4_version[]mym4_betastring])
+@@ -453,7 +453,7 @@ EOF
+ fi
  
+ # Check the git setup.
+-if [ -d .git ]; then
++if false; then
+   CP="cp -p"
+   # If we have a GNU cp we can add -v
+   if cp --version >/dev/null 2>/dev/null; then

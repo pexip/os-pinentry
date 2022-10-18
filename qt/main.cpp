@@ -1,11 +1,12 @@
 /* main.cpp - A Qt dialog for PIN entry.
  * Copyright (C) 2002, 2008 Klarälvdalens Datakonsult AB (KDAB)
- * Copyright (C) 2003 g10 Code GmbH
+ * Copyright (C) 2003, 2021 g10 Code GmbH
  * Copyright 2007 Ingo Klöcker
  *
  * Written by Steffen Hansen <steffen@klaralvdalens-datakonsult.se>.
  * Modified by Marcus Brinkmann <marcus@g10code.de>.
  * Modified by Marc Mutz <marc@kdab.com>
+ * Software engineering by Ingo Klöcker <dev@ingo-kloecker.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -26,19 +27,24 @@
 #include "config.h"
 #endif
 
+#include "accessibility.h"
 #include "pinentryconfirm.h"
 #include "pinentrydialog.h"
 #include "pinentry.h"
+#include "util.h"
 
-#include <qapplication.h>
+#include <QApplication>
+#include <QDebug>
 #include <QIcon>
-#include <QString>
-#include <qwidget.h>
-#include <qmessagebox.h>
+#include <QMessageBox>
 #include <QPushButton>
+#include <QString>
+#include <QWidget>
+#if QT_VERSION >= 0x050000
+#include <QWindow>
+#endif
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 
 #include <stdexcept>
@@ -60,6 +66,12 @@
     Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
   #endif
 #endif
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
+#include "pinentry_debug.h"
 
 static QString escape_accel(const QString &s)
 {
@@ -97,22 +109,6 @@ static QString escape_accel(const QString &s)
     return result;
 }
 
-/* Hack for creating a QWidget with a "foreign" window ID */
-class ForeignWidget : public QWidget
-{
-public:
-    explicit ForeignWidget(WId wid) : QWidget(0)
-    {
-        QWidget::destroy();
-        create(wid, false, false);
-    }
-
-    ~ForeignWidget()
-    {
-        destroy(false, false);
-    }
-};
-
 namespace
 {
 class InvalidUtf8 : public std::invalid_argument
@@ -139,17 +135,44 @@ static QString from_utf8(const char *s)
     return result;
 }
 
+static void
+setup_foreground_window(QWidget *widget, WId parentWid)
+{
+#if QT_VERSION >= 0x050000
+    /* For windows set the desktop window as the transient parent */
+    QWindow *parentWindow = nullptr;
+    if (parentWid) {
+        parentWindow = QWindow::fromWinId(parentWid);
+    }
+#ifdef Q_OS_WIN
+    if (!parentWindow) {
+        HWND desktop = GetDesktopWindow();
+        if (desktop) {
+            parentWindow = QWindow::fromWinId((WId) desktop);
+        }
+    }
+#endif
+    if (parentWindow) {
+        // Ensure that we have a native wid
+        widget->winId();
+        QWindow *wndHandle = widget->windowHandle();
+
+        if (wndHandle) {
+            wndHandle->setTransientParent(parentWindow);
+        }
+    }
+#endif
+    widget->setWindowFlags(Qt::Window |
+                           Qt::CustomizeWindowHint |
+                           Qt::WindowTitleHint |
+                           Qt::WindowCloseButtonHint |
+                           Qt::WindowStaysOnTopHint |
+                           Qt::WindowMinimizeButtonHint);
+}
+
 static int
 qt_cmd_handler(pinentry_t pe)
 {
-    QWidget *parent = 0;
-    char *str;
-
-    /* FIXME: Add parent window ID to pinentry and GTK.  */
-    if (pe->parent_wid) {
-        parent = new ForeignWidget((WId) pe->parent_wid);
-    }
-
     int want_pass = !!pe->pin;
 
     const QString ok =
@@ -161,11 +184,10 @@ qt_cmd_handler(pinentry_t pe)
         pe->default_cancel ? escape_accel(from_utf8(pe->default_cancel)) :
         /* else */           QLatin1String("&Cancel") ;
 
-    str = pinentry_get_title (pe);
+    unique_malloced_ptr<char> str{pinentry_get_title(pe)};
     const QString title =
-        str       ? from_utf8(str) :
+        str       ? from_utf8(str.get()) :
         /* else */  QLatin1String("pinentry-qt") ;
-    free (str);
 
     const QString repeatError =
         pe->repeat_error_string ? from_utf8(pe->repeat_error_string) :
@@ -180,22 +202,39 @@ qt_cmd_handler(pinentry_t pe)
         pe->default_tt_hide ? from_utf8(pe->default_tt_hide) :
                               QLatin1String("Hide passphrase");
 
+    const QString capsLockHint =
+        pe->default_capshint ? from_utf8(pe->default_capshint) :
+                              QLatin1String("Caps Lock is on");
+
+    const QString generateLbl = pe->genpin_label ? from_utf8(pe->genpin_label) :
+                                QString();
+    const QString generateTT = pe->genpin_tt ? from_utf8(pe->genpin_tt) :
+                               QString();
+
 
     if (want_pass) {
-        char *str;
-
-        PinEntryDialog pinentry(parent, 0, pe->timeout, true, !!pe->quality_bar,
+        PinEntryDialog pinentry(nullptr, 0, pe->timeout, true, !!pe->quality_bar,
                                 repeatString, visibilityTT, hideTT);
-
+        setup_foreground_window(&pinentry, pe->parent_wid);
         pinentry.setPinentryInfo(pe);
         pinentry.setPrompt(escape_accel(from_utf8(pe->prompt)));
         pinentry.setDescription(from_utf8(pe->description));
         pinentry.setRepeatErrorText(repeatError);
+        pinentry.setGenpinLabel(generateLbl);
+        pinentry.setGenpinTT(generateTT);
+        pinentry.setCapsLockHint(capsLockHint);
+        pinentry.setFormattedPassphrase({
+            bool(pe->formatted_passphrase),
+            from_utf8(pe->formatted_passphrase_hint)});
+        pinentry.setConstraintsOptions({
+            bool(pe->constraints_enforce),
+            from_utf8(pe->constraints_hint_short),
+            from_utf8(pe->constraints_hint_long),
+            from_utf8(pe->constraints_error_title)
+        });
 
-        str = pinentry_get_title (pe);
-        if (str) {
-            pinentry.setWindowTitle(from_utf8(str));
-            free (str);
+        if (!title.isEmpty()) {
+            pinentry.setWindowTitle(title);
         }
 
         /* If we reuse the same dialog window.  */
@@ -247,7 +286,11 @@ qt_cmd_handler(pinentry_t pe)
             pe->notok      ? QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel :
             /* else */       QMessageBox::Ok | QMessageBox::Cancel ;
 
-        PinentryConfirm box(QMessageBox::Information, pe->timeout, title, desc, buttons, parent);
+        PinentryConfirm box{QMessageBox::Information, title, desc, buttons};
+        box.setTextFormat(Qt::PlainText);
+        box.setTextInteractionFlags(Qt::TextSelectableByMouse);
+        box.setTimeout(std::chrono::seconds{pe->timeout});
+        setup_foreground_window(&box, pe->parent_wid);
 
         const struct {
             QMessageBox::StandardButton button;
@@ -262,12 +305,11 @@ qt_cmd_handler(pinentry_t pe)
         for (size_t i = 0 ; i < sizeof buttonLabels / sizeof * buttonLabels ; ++i)
             if ((buttons & buttonLabels[i].button) && !buttonLabels[i].label.isEmpty()) {
                 box.button(buttonLabels[i].button)->setText(buttonLabels[i].label);
-#ifndef QT_NO_ACCESSIBILITY
-                box.button(buttonLabels[i].button)->setAccessibleDescription(buttonLabels[i].label);
-#endif
+                Accessibility::setDescription(box.button(buttonLabels[i].button),
+                                              buttonLabels[i].label);
             }
 
-        box.setIconPixmap(icon());
+        box.setIconPixmap(applicationIconPixmap());
 
         if (!pe->one_button) {
             box.setDefaultButton(QMessageBox::Cancel);
@@ -312,9 +354,25 @@ main(int argc, char *argv[])
     pinentry_init("pinentry-qt");
 
     QApplication *app = NULL;
+    int new_argc = 0;
 
 #ifdef FALLBACK_CURSES
-    if (!pinentry_have_display(argc, argv)) {
+#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN)
+    // check a few environment variables that are usually set on X11 or Wayland sessions
+    const bool hasWaylandDisplay = qEnvironmentVariableIsSet("WAYLAND_DISPLAY");
+    const bool isWaylandSessionType = qgetenv("XDG_SESSION_TYPE") == "wayland";
+    const bool hasX11Display = pinentry_have_display(argc, argv);
+    const bool isX11SessionType = qgetenv("XDG_SESSION_TYPE") == "x11";
+    const bool isGUISession = hasWaylandDisplay || isWaylandSessionType || hasX11Display || isX11SessionType;
+    qCDebug(PINENTRY_LOG) << "hasWaylandDisplay:" << hasWaylandDisplay;
+    qCDebug(PINENTRY_LOG) << "isWaylandSessionType:" << isWaylandSessionType;
+    qCDebug(PINENTRY_LOG) << "hasX11Display:" << hasX11Display;
+    qCDebug(PINENTRY_LOG) << "isX11SessionType:" << isX11SessionType;
+    qCDebug(PINENTRY_LOG) << "isGUISession:" << isGUISession;
+#else
+    const bool isGUISession = pinentry_have_display(argc, argv);
+#endif
+    if (!isGUISession) {
         pinentry_cmd_handler = curses_cmd_handler;
         pinentry_set_flavor_flag ("curses");
     } else
@@ -351,9 +409,16 @@ main(int argc, char *argv[])
                 p += strlen(argv[i]) + 1;
             }
 
-        i = argc;
-        app = new QApplication(i, new_argv);
-        app->setWindowIcon(QIcon(QLatin1String(":/document-encrypt.png")));
+        /* Note: QApplication uses int &argc so argc has to be valid
+         * for the full lifetime of the application.
+         *
+         * As Qt might modify argc / argv we use copies here so that
+         * we do not loose options that are handled in both. e.g. display.
+         */
+        new_argc = argc;
+        Q_ASSERT (new_argc);
+        app = new QApplication(new_argc, new_argv);
+        app->setWindowIcon(QIcon(QLatin1String(":/icons/document-encrypt.png")));
     }
 
     pinentry_parse_opts(argc, argv);
