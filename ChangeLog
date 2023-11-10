@@ -1,3 +1,1132 @@
+2022-08-24  Werner Koch  <wk@gnupg.org>
+
+	Release 1.2.1.
+	+ commit 338961541fa9416937092d6e7720246b3cd7465a
+
+
+2022-08-12  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Use Dialogs foregroundwindow code in confirm.
+	+ commit 835b690cbd857eb699f24745ee13371b4d379683
+	* qt/pinentryconfirm.cpp (PinentryConfirm): Minimize and raise on
+	start.
+	(showEvent): Do not call raiseWindow.
+
+2022-08-05  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt4: Add recipe for container for testing build for Qt4.
+	+ commit 0cb17ea14e533655e17c9daff1058a211ff9087e
+	* docker: New.
+
+	qt4: Make it compile with Qt 4.8.7 and without C++11.
+	+ commit 825819b754f50b79e238efc8c9613653315872bb
+	* qt4/main.cpp (qt_cmd_handler): Replace nullptr with NULL.
+	* qt4/pinentrydialog.cpp (PinEntryDialog::generatePin): Replace auto with
+	type name.
+	* qt4/pinlineedit.cpp (PinLineEdit::keyPressEvent): Replace
+	Qt::Key::Key_Backspace with Qt::Key_Backspace.
+
+	qt,qt4: Separate build of pinentry with Qt5 and Qt4.
+	+ commit 08a7391fc024530fa619fabbd16f900ad42108e6
+	* Makefile.am (pinentry_qt4): New.
+	(SUBDIRS): Add pinentry_qt4.
+	* configure.ac: Add arg pinentry-qt4. Check for Qt4 libraries.
+	Substitute variables PINENTRY_QT4_CFLAGS, PINENTRY_QT4_LIBS,
+	PINENTRY_QT4_LDFLAGS, MOC4.
+	(BUILD_PINENTRY_QT4): New conditional.
+	(PINENTRY_QT4): New define.
+	* m4/qt.m4: Remove check for Qt4 libraries.
+	* m4/qt4.m4: New.
+	* qt4/Makefile.am: Check for BUILD_PINENTRY_QT4 instead of
+	BUILD_PINENTRY_QT.
+	(bin_PROGRAMS): Change pinentry-qt to pinentry-qt4.
+	(AM_CXXFLAGS): Change PINENTRY_QT_CFLAGS to PINENTRY_QT4_CFLAGS.
+	(pinentry_qt_LDADD): Renamed to pinentry_qt4_LDADD.
+	(pinentry_qt4_LDADD): Change PINENTRY_QT_LIBS to PINENTRY_QT4_LIBS.
+	(pinentry_qt_LDFLAGS): Renamed to pinentry_qt4_LDFLAGS.
+	(pinentry_qt4_LDFLAGS): Change PINENTRY_QT_LDFLAGS to
+	PINENTRY_QT4_LDFLAGS.
+	(pinentry_qt_SOURCES): Renamed to pinentry_qt4_SOURCES.
+	(nodist_pinentry_qt_SOURCES): Renamed to nodist_pinentry_qt4_SOURCES.
+	(.h.moc): Change MOC to MOC4.
+
+	qt4: Add old copy of source code of pinentry-qt for building with Qt4.
+	+ commit 70388f18958c5df7a45911e0fade23d19acb38e8
+	* qt4: New.
+
+2022-07-21  NIIBE Yutaka  <gniibe@fsij.org>
+
+	Fix for modern Autoconf.
+	+ commit 34709975debde7afc0927f30c8541c40af0cc481
+	* m4/curses.m4: Use AS_HELP_STRING.  Use AC_LINK_IFELSE.
+	* m4/qt.m4: Use AS_HELP_STRING.
+
+	build: Update config.guess, config.sub, and config.rpath.
+	+ commit e1cdfc733757b9cc801b628185f1404494d5000c
+	* build-aux/config.guess: Update from upstream.
+	* build-aux/config.sub: Ditto.
+	* build-aux/config.rpath: Update from gettext 0.21.
+
+	build: Fix for internal secmem.
+	+ commit 55353112cdc7a9fb84ad5d6d430e218ae81710b4
+	* acinclude.m4 (GNUPG_CHECK_TYPEDEF): Remove.
+	(GNUPG_CHECK_MLOCK): Update from libgcrypt.
+	* configure.ac: Use AC_CHECK_TYPES for byte, ulong, and u64.
+	* secmem/secmem.c: Use HAVE_U64.
+
+	build: Update gpg-error.m4.
+	+ commit 4f26b1fa994c8d013fc7516e16e2f1488212e0e7
+	* m4/gpg-error.m4: Update from libgpg-error.
+
+2022-06-01  NIIBE Yutaka  <gniibe@fsij.org>
+
+	Remove old code which makes sure NUL-termination of strings.
+	+ commit 523a4f2d5d1c37df5ea7922f9545823afb3cb762
+	* gnome3/pinentry-gnome3.c (create_prompt): Remove putting 0.
+	* gtk+-2/pinentry-gtk-2.c (changed_text_handler): Ditto.
+	* pinentry/pinentry.c (get_cmdline, pinentry_get_title): Ditto.
+	(my_strusage, write_status_error, cmd_getinfo): Ditto.
+	* w32/main.c (w32_strerror): Ditto.
+
+	Remove USE_CAPABILITIES.
+	+ commit 0d3be7b81eb1fea6b51144d2381eaa318a63e761
+	* configure.ac: Remove --with-libcap.
+	* curses/Makefile.am, efl/Makefile.am: Remove LIBCAP.
+	* emacs/Makefile.am, fltk/Makefile.am: Ditto.
+	* gnome3/Makefile.am, gtk+-2/Makefile.am: Ditto.
+	* qt/Makefile.am, tqt/Makefile.am: Ditto.
+	* tty/Makefile.am: Ditto.
+
+	secmem: Remove use of cap_set_proc.
+	+ commit 88cad4621be36fa70596abb803252b844d1b5d42
+	* secmem/secmem.c (lock_pool): Clean up.
+
+2022-06-01  Jakub Jelen  <jjelen@redhat.com>
+
+	pinentry: Remove dead code.
+	+ commit 96771ae57e86756a2f079202cf069a1ce6cc4357
+	* pinentry/pinentry.c (pinentry_get_title): Remove needless check for
+	  null on static array
+
+	pinentry: Terminate the buffer in the right place.
+	+ commit cd753c8560cde013981466c7298e0376e27b6364
+	* pinentry/pinentry.c (get_pid_name_for_uid): Terminate the buffer in
+	  the right place.
+
+	secmem: Do not pass negative values to strerr.
+	+ commit c2e7cc560bdbcdaa9861ae8d37f28be5b342a64d
+	secmem/secmem.c (lock_pool): Pass the correct variable to strerr
+
+2022-05-25  NIIBE Yutaka  <gniibe@fsij.org>
+
+	Mark with ASSUAN_CONFIDENTIAL flag.
+	+ commit c405add93a77f332273fa844bba36dade3f6422b
+	* pinentry/pinentry.c (cmd_getpin): Call assuan_begin_confidential
+	and assuan_end_confidential.
+
+2022-05-12  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Update the cursor position when reformatting the text.
+	+ commit 555cd94a2b2bb294a658a1c6ff9574f8a4ff3186
+	* qt/pinlineedit.cpp (PinLineEdit::textEdited): Update cursor position
+	after reformatting the text.
+
+2022-03-24  NIIBE Yutaka  <gniibe@fsij.org>
+
+	w32,curses: Supply simple replacement for nl_langinfo.
+	+ commit 41884436bec05997ffe21e93bcee604e53b9d120
+	* pinentry/pinentry-curses.c [HAVE_W32_SYSTEM] (nl_langinfo): New.
+
+	curses: Move pinentry_utf8_to_local/pinentry_local_to_utf8.
+	+ commit 4612fd45f56963abf6052ef44a3575a1f98bf08a
+	* pinentry/pinentry-curses.c (pinentry_utf8_to_local): Now here.
+	(pinentry_local_to_utf8, lc_ctype_unknown_warning): Likewise.
+	* pinentry/pinentry.c: Moved to pinentry-curses.c.
+	(pinentry_get_pgmname): New.
+
+	build,w32: Fix build on Windows.
+	+ commit 9a8a38d28d36cf49b057fcd730de878acbd5fae3
+	* Makefile.am: Add EXEEXT.
+	* secmem/secmem.c [HAVE_MMAP] (pool_is_mmapped): Only enabled with
+	HAVE_MMAP.
+	(init_pool): The variable PGSIZE is only used with HAVE_MMAP.
+
+2022-03-02  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	build: Do not list the same files thrice in qt/Makefile.am.
+	+ commit 5531e1c682382f42ef8f0545596a4fd3635e8484
+	* qt/Makefile.am (CLEANFILES, nodist_pinentry_qt_SOURCES): Set to
+	$(BUILT_SOURCES).
+
+	qt: Make text label in pinentry message box focusable.
+	+ commit 42af54bece51f3c4c70eab0b2f67a03cc8951dff
+	* qt/main.cpp (qt_cmd_handler): Set text format of message box to
+	PlainText. Set text interaction flags of message box to
+	TextSelectableByMouse.
+	* qt/qt/pinentryconfirm.h (class PinentryConfirm): Derive from
+	QAccessible::ActivationObserver interface; add d'tor; override
+	focusNextPrevChild method of QMessageBox and  accessibilityActiveChanged
+	method of QAccessible::ActivationObserver interface.
+	* qt/pinentryconfirm.cpp (messageBoxLabel): New.
+	(PinentryConfirm::PinentryConfirm): Register as activation observer.
+	(PinentryConfirm::~PinentryConfirm): New.
+	(PinentryConfirm::focusNextPrevChild): New.
+	(PinentryConfirm::accessibilityActiveChanged): New.
+
+	qt: Extract function for selecting the text of a QLabel.
+	+ commit b6370f87d247cfeb4d4161a248fa91661d08af37
+	* qt/accessibility.h, qt/accessibility.cpp (selectLabelText): New.
+	* qt/pinentrydialog.cpp (TextLabel::focusInEvent): Use new function.
+
+	qt: Modernize code.
+	+ commit e7bcc0894e3a9e7cf5ae460af0269033c5b421cd
+	* qt/pinentryconfirm.h, qt/pinentryconfirm.cpp
+	(PinentryConfirm::PinentryConfirm): Remove timeout argument. Add flags
+	argument. Rename argument desc to text.
+	(PinentryConfirm::setTimeout, PinentryConfirm::timeout): New.
+	(PinentryConfirm::showEvent): Mark as override.
+	(class PinentryConfirm): Hold field _timer by value instead of by
+	pointer. Initialize _timed_out in-class. Use Q_SLOTS instead of slots.
+	* qt/pinentryconfirm.cpp (PinentryConfirm::PinentryConfirm):
+	Use QTimer::callOnTimeout() for setting the timeout handler. Do not
+	start the timer.
+	(PinentryConfirm::showEvent): Make timer a single-shot timer and start it.
+	* qt/main.cpp (qt_cmd_handler): Set timeout with new setter.
+
+	qt: Fix reaction to Escape key and close button of window.
+	+ commit 4435e9fa206f29b2fbc45e24b85c5604c4eefdbd
+	* qt/pinentryconfirm.cpp (PinentryConfirm::showEvent): Call the
+	overridden method of the direct super class.
+
+	qt: Use better icon for signalling an error.
+	+ commit 774e8a72cd1e10f6e81592fe8e47c13c3167cd77
+	* qt/icons/data-error.svg: New.
+	* qt/icons/Makefile.am, qt/pinentryrc.qrc: Add new file.
+	* qt/pinentrydialog.h, qt/pinentrydialog.cpp (icon): Rename to
+	applicationIconPixmap. Change optional parameter to QIcon.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog,
+	PinEntryDialog::setDescription): Adjust to renaming of icon().
+	(PinEntryDialog::setError): Use new icon as overlay for application icon.
+	* qt/main.cpp (qt_cmd_handler):  Adjust to renaming of icon().
+
+2022-03-02  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Add Makefile.am for icons subdir.
+	+ commit 62efdca5e5cc354e53bbf4d39ca84031a9706086
+	* qt/icons/Makefile.am: New.
+
+2022-03-01  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Modernize code: Use in-class initializers for all members.
+	+ commit 09e0111f02853c210b2106410eedf62734c1ec35
+	* qt/pinentrydialog.h (class PinEntryDialog): Use in-class initializers
+	for all POD members.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Remove
+	superfluous member initializers. Flag argument 'name' as unused. Remove
+	superfluous initialization by assignment of _timed_out and _timer.
+
+	qt: Modernize code: Use type-safe, new-style connects.
+	+ commit d63355949f27787b131c34c8213666ea75a738ce
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Use new-style
+	connects.
+
+	qt: Fix giving focus to repeat field after Enter in first field.
+	+ commit 8671cc814ca0c148bdfbd67816e211aa27462ca1
+	* qt/pinentrydialog.h, qt/pinentrydialog.cpp
+	(PinEntryDialog::keyPressEvent): New.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Remove
+	connection to QLineEdit::returnPressed signal.
+	(PinEntryDialog::focusChanged): Remove code changing the default property
+	of the Ok button.
+
+	qt: Fix compiler warning.
+	+ commit 3157e27ebbd62a08a813d4f8e2dac7051e3b1059
+	* qt/pinentrydialog.h (class PinEntryDialog): Mark showEvent as override.
+
+	qt: Allow text of all labels to be selected with the mouse.
+	+ commit c75350edce1b0580caacbe8a30d8e52885ae6366
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Set text
+	interaction flags of all text labels to TextSelectableByMouse.
+	(PinEntryDialog::accessibilityActiveChanged): Keep ClickFocus in focus
+	policy of labels.
+
+	qt: Do not set an empty tool tip.
+	+ commit e19dc862774e30206cb55662214273d068d9dc89
+	qt/pinentrydialog.cpp (PinEntryDialog::setConstraintsOptions): Check
+	if options.longHint is empty.
+
+	qt: Ensure visual feedback when a text label gets focus.
+	+ commit 09f92e7123c22fb7354ad26a67b404f3cb4028a4
+	qt/pinentrydialog.cpp (class TextLabel): New.
+	qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Set text format
+	of all text labels to PlainText. Change all text labels that shall be
+	able to receive focus from QLabel to TextLabel.
+	(PinEntryDialog::setFormattedPassphrase): Set text format of
+	mFormattedPassphraseHint to RichText.
+
+	qt: Make text labels focusable if accessibility is active.
+	+ commit 50ad2196d3f62a2fe078e4554b34e75b423374ee
+	qt/pinentrydialog.h (class PinEntryDialog): Derive from
+	QAccessible::ActivationObserver interface; add d'tor; override
+	accessibilityActiveChanged function of QAccessible::ActivationObserver
+	interface.
+	qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Register the
+	dialog as activation observer.
+	(PinEntryDialog::~PinEntryDialog): New.
+	(PinEntryDialog::accessibilityActiveChanged): New.
+
+	qt: Create all widgets in tab order.
+	+ commit dd9f765258230cad6704afb4fab6c3deb4a8de56
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	_have_quality_bar with member initializer; rework setup of UI
+
+2022-02-10  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Embed icons to avoid theme searches.
+	+ commit 7d5c123f802abce11c711d57e8796d58d6ff1a16
+	* m4/qt.m4: Check for RCC tool
+	* qt/qrc_pinentry.cpp: Remove not used file.
+	* qt/document-encrypt.png: Move to icons subfolder
+	* qt/icons/*.svg: New.
+	* qt/main.cpp: Use new path for window icon.
+	* qt/pinentryrc.qrc: Real ressource file.
+	* qt/pinentrydialog.cpp: Use embedded icons.
+
+2022-01-19  Daniel Kahn Gillmor  <dkg@fifthhorseman.net>
+
+	avoid typo.
+	+ commit 8b07ddf3460acd613db66f4c1230636da6ea191b
+
+
+2022-01-17  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Install translator and translations.
+	+ commit 8f239a2b133cae8ca9c1876c732d4e00d06c7d26
+	* qt/qti18n.cpp: New. Based on KDE framework ki18n.
+
+2021-12-22  NIIBE Yutaka  <gniibe@fsij.org>
+
+	build: Fix configure.ac for newer autoconf/automake.
+	+ commit ac338b99fd63ddfa8a7b6ae07933cfda6b108162
+	* configure.ac (AC_CONFIG_HEADERS): Use it, instead of obsolete
+	AM_CONFIG_HEADER.
+	(AC_HEADER_STDC): Remove.
+
+2021-10-15  NIIBE Yutaka  <gniibe@fsij.org>
+
+	curses: Fix the previous commit.
+	+ commit b713f31c5b042ff9d7b10c64bbc7ab02e195fbc9
+
+
+2021-10-13  NIIBE Yutaka  <gniibe@fsij.org>
+	    David Stes  <stes@telenet.be>
+
+	curses: Specify fg/bg when an extention of Ncurses is not available.
+	+ commit d937ccfe4445394f0ca0da24fe46429a29ae48ce
+	* pinentry/pinentry-curses.c (dialog_run): Support original Curses.
+
+2021-09-30  NIIBE Yutaka  <gniibe@fsij.org>
+
+	curses: Handle an error at curses initialization.
+	+ commit d22c49140b86880bbea2bb55542297984792b40a
+	* pinentry/pinentry-curses.c (dialog_run): Detect an error of newterm.
+
+2021-09-14  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Support building with Qt 5.9.
+	+ commit c68d80e23a860a06e7b22b6c0d72aed5d049faef
+	* qt/pinlineedit.cpp (class PinLineEdit::Private): Add field q.
+	(PinLineEdit::Private::Private): New.
+	(PinLineEdit::Private::copyToClipboard): Remove obsolete parameter.
+	Use new field q instead.
+	(PinLineEdit::Private::selectionEnd): New.
+	(PinLineEdit::PinLineEdit): Pass this to Private.
+	(PinLineEdit::setFormattedPassphrase): Use new selectionEnd.
+	(PinLineEdit::copy): Call copyToClipboard without parameter.
+
+2021-08-25  Werner Koch  <wk@gnupg.org>
+
+	Release 1.2.0.
+	+ commit aaf5d44f26e39f57bb47ae09dd3d575fcc51d9f5
+
+
+2021-08-18  Werner Koch  <wk@gnupg.org>
+
+	Accept percent escaped formatted-passphrase-hint option.
+	+ commit 008fb9337a52730b5533c6c3ddc93128f8c5395b
+	* pinentry/pinentry.c (option_handler): Unescape
+	formatted_passphrase_hint.
+
+2021-08-18  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Change group size for passphrase formatting to 5.
+	+ commit 5a6d70cf7d7bdd42505400bb1838c56812a22e56
+	* qt/pinlineedit.cpp (static const int FormattedPassphraseGroupSize):
+	Set to 5.
+
+2021-08-16  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Make sure the message box is centered on top of the pinentry.
+	+ commit d285c2cb1f61df77427967ea96c1df02adcae8df
+	* qt/pinentrydialog.cpp (PinEntryDialog::checkConstraints): Set
+	parent of message box.
+
+2021-08-12  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Make pinentry compile again with QT_NO_ACCESSIBILITY.
+	+ commit 141b5776a90675877bdf63c17946170a7b20e5c6
+	* qt/accessibility.cpp, qt/accessibility.h: New.
+	* qt/Makefile.am (pinentry_qt_SOURCES): Add new files.
+	* qt/main.cpp (qt_cmd_handler): Use new Accessibility helpers.
+	* qt/pinentryconfirm.cpp (PinentryConfirm::PinentryConfirm): Use new
+	Accessibility helpers.
+	* qt/pinentrydialog.cpp (PinEntryDialog::setDescription,
+	PinEntryDialog::setError, PinEntryDialog::setOkText,
+	PinEntryDialog::setCancelText, PinEntryDialog::setQualityBar,
+	PinEntryDialog::setGenpinLabel, PinEntryDialog::setCapsLockHint,
+	PinEntryDialog::setConstraintsOptions): Use new Accessibility helpers.
+	(PinEntryDialog::textChanged, PinEntryDialog::checkCapsLock): Guard
+	code using accessibility features with #ifndef QT_NO_ACCESSIBILITY.
+
+	qt: Always make passphrase visible after generating it.
+	+ commit e0b4e552638ed0d18a166a1337d9caa32744520e
+	* qt/pinentrydialog.cpp (PinEntryDialog::generatePin): Trigger
+	visibility action or check visibility checkbox.
+
+	qt: Prevent possible crash when generating pin.
+	+ commit 146fc0444b1fd30b85bac1f97607a9691164faa0
+	* qt/pinentrydialog.cpp (PinEntryDialog::toggleVisibility): Check
+	visibility action for nullptr.
+
+	qt: Change calculation of end of selection when enabling formatting.
+	+ commit 1349fb7bcb5c84f3e0474ae209c5a058c12ff6e9
+	* qt/pinlineedit.cpp (PinLineEdit::Private::formattedSelection):
+	Do not include trailing separator in selection.
+
+	qt: Fix calculation of end of selection when disabling formatting.
+	+ commit 1ae88d75321898901a692df95799a3c7e7b2f038
+	* qt/pinlineedit.cpp (PinLineEdit::Private::unformattedSelection):
+	Fix calculation.
+
+	qt: Remove checkbox for passphrase formatting.
+	+ commit 06190adba5ac544bce77c4e5af75b44896850145
+	* qt/main.cpp (qt_cmd_handler): Pass changed formatted passphrase
+	options to the dialog.
+	* qt/pinentrydialog.h (PinEntryDialog): Add field mFormatPassphrase.
+	Remove field mFormattedPassphraseCB.
+	(enum PinEntryDialog::FormattedPassphraseMode): Remove.
+	(struct PinEntryDialog::FormattedPassphraseOptions): Remove fields
+	mode, label, tooltip. Add field formatPassphrase.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	mFormatPassphrase.
+	(PinEntryDialog::setFormattedPassphrase): Set mFormatPassphrase.
+	Update widgets.
+	(PinEntryDialog::toggleFormattedPassphrase): Use mFormatPassphrase
+	instead of state of removed checkbox.
+
+	Make passphrase formatting a simple flag.
+	+ commit c42c6371fcf8ff2e856fa6059261617644e32a57
+	* pinentry/pinentry.h (struct pinentry): Remove fields
+	formatted_passphrase_label, formatted_passphrase_tt.
+	* pinentry/pinentry.c (pinentry_reset): Remove free'ing of removed
+	fields.
+	(option_handler): Treat option "formatted-passphrase" as simple flag.
+	Remove options "formatted-passphrase-label", "formatted-passphrase-tt".
+
+2021-08-11  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Add missing header files to sources.
+	+ commit 990afda6a9a1633297882da4f9c255b60a1cc338
+	* qt/Makefile.am (pinentry_qt_SOURCES): Add header files.
+
+	qt: Add logging category.
+	+ commit 3086964f103d19b035f8df95114905a82fb4eb89
+	* qt/pinentry_debug.cpp, qt/pinentry_debug.h: New.
+	* qt/Makefile.am (pinentry_qt_SOURCES): Add new files.
+	* qt/main.cpp (main): Use logging category for debug messages.
+
+	qt: Fix crash when setting repeat error.
+	+ commit d71d890ec23e718f339dc5a3f141a3f04a38e020
+	* qt/pinentrydialog.cpp (PinEntryDialog::setRepeatErrorText): Check
+	for nullptr.
+
+	qt: Change type and title of "Passwords do not match" notification.
+	+ commit b8f1d2cc4202b4a76b199c356f2957df8acc37f5
+	* qt/pinentrydialog.cpp (PinEntryDialog::onAccept): Make notification
+	an "information". Use repeat error text as title.
+
+	qt: Avoid HTML markup in accessible descriptions and names.
+	+ commit 639725b68b8a57fdad610fbe570029f151b138cb
+	* qt/pinentrydialog.cpp (PinEntryDialog::setFormattedPassphrase,
+	PinEntryDialog::setConstraintsOptions):
+	Set accessible descriptions and accessible names without HTML markup.
+
+	qt: Select generated password explicitly after giving focus to input.
+	+ commit 70b14b29d53291245dd72281e2b94a43f5834328
+	qt/pinentrydialog.cpp (PinEntryDialog::generatePin): Select text in
+	input field.
+
+2021-08-10  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Make the generate password action accessible.
+	+ commit 42c0d3ee935de67b5a261b1bd0fa62b1b519cbd4
+	* qt/pinentrydialog.h (PinEntryDialog): Remove unused field mGenerateTT.
+	Remove field mGenerateActionEdit. Add field mGenerateButton.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	new field. Set up new push button.
+	(PinEntryDialog::setGenpinLabel): Set accessible name and update
+	visibility of new push button.
+	(PinEntryDialog::setGenpinLabel): Set tooltip of new push button.
+	(PinEntryDialog::setGenpinLabel): Update visibility of new push button.
+	(PinEntryDialog::generatePin): Focus password input field.
+
+2021-08-09  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Improve accessibility when entering new password.
+	+ commit 8acf47ea46a6c2aa1fc5254b81c6cf57ad506b9c
+	* qt/pinentrydialog.h (PinEntryDialog): Change type of field
+	mRepeatError from QString to QLabel*.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	mRepeatError. Add widget for "entered passwords do not match"
+	error. Do not make the Ok button the default button. Connect to
+	returnPressed signal of (first) password input field.
+	(PinEntryDialog::focusChanged): Update default state of Ok button.
+	(PinEntryDialog::textChanged): Remove code disabling the Ok button
+	and setting a tooltip.
+	(PinEntryDialog::setRepeatErrorText): Set text of "entered passwords
+	do not match" widget.
+	(PinEntryDialog::onAccept): Show error if entered passwords do not
+	match.
+
+2021-08-06  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Mask caps lock toggle bit on windows.
+	+ commit e5d4738a76b44c4732ddb57b7a3f3e25001ef006
+	* qt/capslock_win.cpp (capsLockState): Mask toggle bit.
+
+2021-08-02  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Try harder to find out whether we are running in a GUI session.
+	+ commit 956ee260f541790e0ecf01feb9d91f8f1617aa0e
+	* qt/main.cpp (main): Check more environment variables on Unix systems.
+
+	Fix typo.
+	+ commit 0735afa87e90c160bd3092605598c204b7dc38c3
+
+
+	qt: Improve message shown if passphrase does not satisfy constraints.
+	+ commit fefd730651b6881aba374c548ff253517063747a
+	qt/pinentrydialog.cpp (PinEntryDialog::checkConstraints): Use
+	property-based API of QMessageBox.
+
+	qt: Ensure that malloced strings are free'd.
+	+ commit 6191d4f06c8b46232e7d1bb3e12e3a3736fa6582
+	* qt/main.cpp (qt_cmd_handler): Use unique_malloced_ptr for malloced
+	strings.
+	* qt/pinentrydialog.cpp (PinEntryDialog::generatePin,
+	PinEntryDialog::checkConstraints): Use unique_malloced_ptr for malloced
+	strings.
+	* qt/util.h: New.
+
+	qt: Cancel timeout on more user interactions.
+	+ commit f622321df5bbaedef882c3451307ff1727c4cd2d
+	* qt/pinentrydialog.h, qt/pinentrydialog.cpp
+	(PinentryDialog::cancelTimeout): New.
+	* qt/pinentrydialog.cpp (PinEntryDialog::onBackspace): Cancel timeout.
+	(PinEntryDialog::updateQuality, PinEntryDialog::textChanged): Cancel
+	timeout in PinEntryDialog::textChanged instead of
+	PinEntryDialog::updateQuality.
+	(PinEntryDialog::onAccept): Cancel timeout.
+
+2021-07-28  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Check passphrase constraints before accepting passphrase.
+	+ commit b0969ef692ac729c3e3d9d8d5f34579f2116438a
+	* qt/main.cpp (qt_cmd_handler): Pass constraints options to the dialog.
+	* qt/pinentrydialog.h (PinEntryDialog): Add struct ConstraintsOptions.
+	Add enum PassphraseCheckResult. Add fields mEnforceConstraints,
+	mConstraintsHint, mConstraintsErrorTitle.
+	* qt/pinentrydialog.h, qt/pinentrydialog.cpp
+	(PinEntryDialog::setConstraintsOptions, PinEntryDialog::onAccept,
+	PinEntryDialog::checkConstraints): New.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	new fields. Call onAccept() on click on Ok. Add widget for constraints
+	hint.
+	(PinEntryDialog::checkCapsLock): Constify variable.
+
+	Add support for passphrase constraints options and checkpin inquiry.
+	+ commit 8f5d4532fbd6e3ed460386bdcda2cdac066a0556
+	* pinentry/pinentry.h (struct pinentry): Add fields constraints_enforce,
+	constraints_hint_short, constraints_hint_long, constraints_error_title.
+	* pinentry/pinentry.h, pinentry/pinentry.c (pinentry_inq_checkpin):
+	New.
+	* pinentry/pinentry.c (pinentry_reset): Take care of the new fields.
+	(do_unescape_inplace): New.
+	(option_handler): New options "constraints-enforce",
+	"constraints-hint-short", "constraints-hint-long",
+	"constraints-error-title".
+
+2021-07-26  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	Mention Caps Lock warning in NEWS file.
+	+ commit 134f75516d9511d7012e7dd3567e45b00ce4cb9a
+
+
+	qt: Add support for Caps Lock hint on Wayland.
+	+ commit 3e803ebf640e73d9fb485fbb8b69b845a80fc695
+	* configure.ac: Check for KF5WaylandClient. Add "-fpic" to CFLAGS.
+	Define PINENTRY_QT_WAYLAND if pinentry-qt should use KF5WaylandClient.
+	* qt/Makefile.am (BUILT_SOURCES, CLEANFILES, nodist_pinentry_qt_SOURCES):
+	Add capslock.moc.
+	(pinentry_qt_SOURCES): Add capslock.cpp.
+	* qt/capslock.cpp: New.
+	* qt/capslock.h (class CapsLockWatcher): New.
+	* qt/capslock_p.h: New.
+	* qt/capslock_unix.cpp (watchingWayland): New static.
+	(capsLockState): Log hint for using CapsLockWatcher on Wayland.
+	(CapsLockWatcher::Private::*): New.
+	* qt/pinentrydialog.cpp: Include config.h.
+	(PinEntryDialog::PinEntryDialog): Set up CapsLockWatcher.
+
+	qt: Differentiate unknown Caps Lock state from off state.
+	+ commit a074c90c78a6dfed3b7d8f32434bcf9f9f2b56dc
+	* qt/capslock.h (enum class LockState): New.
+	* qt/capslock.h, qt/capslock_unix.cpp, qt/capslock_win.cpp
+	(capsLockIsOn, capsLockState): Rename former to latter. Change return
+	type to LockState.
+	* qt/capslock_unix.cpp (capsLockState): Remove check for qApp.
+	* qt/pinentrydialog.cpp (checkCapsLock): Adapt to changed function name
+	and return type of capsLockIsOn/capsLockState.
+
+2021-07-22  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Fix showing of pinentry window on Wayland.
+	+ commit 9dd46926f8d50cca059bbf5ea7aa003b9199a05f
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Skip the
+	minimize+raise trick on Wayland.
+
+2021-07-21  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	qt: Show hint if Caps Lock is on.
+	+ commit 78e4284e8d93502f301cf0c2eab384094680d444
+	* configure.ac: Check for libX11. Define PINENTRY_QT_X11 if pinentry-qt
+	should use x11.
+	* m4/qt.m4: Check for Qt5X11Extras if libX11 is available.
+	* qt/Makefile.am (pinentry_qt_platform_SOURCES): New.
+	(pinentry_qt_SOURCES): Add pinentry_qt_platform_SOURCES.
+	* qt/capslock.h, qt/capslock_unix.cpp, qt/capslock_win.cpp: New.
+	* qt/main.cpp (qt_cmd_handler): Pass caps lock hint to the dialog.
+	* qt/pinentrydialog.cpp, qt/pinentrydialog.h
+	(PinEntryDialog::setCapsLockHint, PinEntryDialog::keyReleaseEvent,
+	PinEntryDialog::checkCapsLock): New.
+	* qt/pinentrydialog.h (PinEntryDialog): Use Q_SLOTS instead of slots.
+	Add field mCapsLockHint.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	new field. Add new widgets to GUI. Connect to applicationStateChanged()
+	signal. Call checkCapsLock().
+
+	Add support for Caps Lock hint.
+	+ commit 672260f15bf88f7aadc88e5ed2717ed22abc510e
+	* pinentry/pinentry.h (struct pinentry): Add field 'default_capshint'.
+	* pinentry/pinentry.cpp (pinentry_reset): Take care of this field.
+	(option_handler): New option "default-capshint".
+
+2021-07-15  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	Fix Assuan commands mentioned in comments.
+	+ commit 621500c872585b60d2b31e2ce529c916b2f1d64c
+	pinentry/pinentry.h (struct pinentry): Fix comments.
+
+	qt: Keep selection when enabling/disabling passphrase formatting.
+	+ commit d875dba1cf87623d0d1240465cd43c660956eb2a
+	* qt/pinlineedit.cpp (struct Selection): New.
+	(PinLineEdit::Private::formattedSelection,
+	PinLineEdit::Private::formattedSelection): New.
+	(PinLineEdit::setFormattedPassphrase): Restore adjusted selection after
+	setting formatted/unformatted passphrase.
+
+	qt: Enable formatted passphrase after generating passphrase.
+	+ commit 64695a5e6f7bf59a1c161a60805dcfe5f3e5d720
+	* qt/pinentrydialog.cpp (PinEntryDialog::generatePin): Enable formatted
+	passphrase option.
+
+	qt: Select passphrase after generation.
+	+ commit 5a5a4de1a32ebfc6364aedfe00702eee9374d63e
+	qt/pinentrydialog.cpp (PinEntryDialog::generatePin): Select text in
+	input field.
+
+	qt: Enable passphrase generation.
+	+ commit 742462d8a4d124936650901fe57b928a6518957c
+	qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Set icon for
+	generate action to a valid icon.
+
+	qt: Show hint if passphrase is shown and formatting is enabled.
+	+ commit 85b180f1b0148a07d51d244deb1a1245c9008cc3
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	new fields.
+	(PinEntryDialog::PinEntryDialog): Add new widgets to GUI.
+	(PinEntryDialog::setFormattedPassphrase): Set text of the hint.
+	(PinEntryDialog::toggleFormattedPassphrase): Show/hide hint and spacer
+	as needed.
+	* qt/pinentrydialog.h (PinEntryDialog): Add fields
+	mFormattedPassphraseHint, mFormattedPassphraseHintSpacer.
+
+	qt: Copy passphrase without separators to clipboard.
+	+ commit 8ad23d6f18cecf4fd0ba1f357a1845c36c9abc97
+	* qt/pinlineedit.cpp, qt/pinlineedit.h (PinLineEdit::copy,
+	PinLineEdit::cut): New.
+	* qt/pinlineedit.cpp (PinLineEdit::Private::copyToClipboard): New.
+	(PinLineEdit::keyPressEvent): Handle more key sequences.
+
+	qt: Support passphrase formatting.
+	+ commit de70241567773a96195882002ce916e54a3639c1
+	* qt/main.cpp (qt_cmd_handler): Pass formatted passphrase options to
+	the dialog.
+	* qt/pinentrydialog.cpp, qt/pinentrydialog.h
+	(PinEntryDialog::setFormattedPassphrase,
+	PinEntryDialog::toggleFormattedPassphrase): New.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Initialize
+	new field. Construct widgets in the order they appear on the screen.
+	Add widget for enabling passphrase formatting.
+	(PinEntryDialog::setPin, PinEntryDialog::generatePin): Use
+	PinLineEdit::setPin() instead of setText().
+	(PinEntryDialog::pin, PinEntryDialog::textChanged,
+	PinEntryDialog::repeatedPin): Use PinLineEdit::pin() instead of text().
+	(PinEntryDialog::toggleVisibility): Call toggleFormattedPassphrase().
+	* qt/pinentrydialog.h (enum PinEntryDialog::FormattedPassphraseMode,
+	struct PinEntryDialog::FormattedPassphraseOptions): New.
+	* qt/pinentrydialog.h (PinEntryDialog): Change type of field mRepeat.
+	Add field mFormattedPassphraseCB.
+	* qt/pinlineedit.cpp, qt/pinlineedit.h (PinLineEdit::~PinLineEdit,
+	PinLineEdit::setPin, PinLineEdit::pin,
+	PinLineEdit::setFormattedPassphrase, PinLineEdit::textEdited,
+	class PinLineEdit::Private): New.
+	* qt/pinlineedit.cpp: Add static constants FormattedPassphraseGroupSize,
+	FormattedPassphraseSeparator.
+	(PinLineEdit::PinLineEdit): Initialize new field. Connect textEdited
+	signal.
+	* qt/pinlineedit.h (PinLineEdit::PinLineEdit): Add explicit specifier.
+	Make argument optional.
+	(PinLineEdit::keyPressEvent): Add override specifier.
+	(PinLineEdit): Make inherited QLineEdit::setText and QLineEdit::text
+	private. Add field d.
+
+	Add support for formatted passphrase options.
+	+ commit deb97f3eb65f64ccabffee74c037a3dca81a3f49
+	* pinentry/pinentry.h (struct pinentry): Add fields
+	formatted_passphrase, formatted_passphrase_label,
+	formatted_passphrase_tt, formatted_passphrase_hint.
+	* pinentry/pinentry.c (pinentry_reset): Free the fields.
+	(option_handler): Add options "formatted-passphrase",
+	"formatted-passphrase-label", "formatted-passphrase-tt",
+	"formatted-passphrase-hint".
+
+2021-04-16  NIIBE Yutaka  <gniibe@fsij.org>
+	    Jakub Jelen  <jjelen@redhat.com>
+
+	tty: Fix error return paths and its resource leaks.
+	+ commit 7f7fd8bcfd74919091cc318b27b8617a9ef2ac82
+	* tty/pinentry-tty.c (tty_cmd_handler): Only call do_touch_file
+	on successful interaction.  Fix closing file.
+
+2021-04-15  NIIBE Yutaka  <gniibe@fsij.org>
+
+	build: Update m4/gpg-error.m4.
+	+ commit 6b697bd3e9f859cea338936894079241f2e15ffc
+	* m4/gpg-error.m4: Update from libgpg-error.
+
+	Let autogen.sh create the VERSION file.
+	+ commit 1c0c177fa5aee63bc2c12ba2074a337555254d99
+	* autogen.sh: Update from Libgpg-error
+	* configure.ac: Use autogen.sh --find-version.
+	* Makefile.am (dist-hook): Do not create VERSION.
+	(EXTRA_DIST): Add VERSION.
+	* autogen.rc: Remove obsolete use of --with-gpg-error-prefix and
+	--with-libassuan-prefix, which is not needed any more.
+
+2021-04-14  Jakub Jelen  <jjelen@redhat.com>
+
+	core,emacs,tty,curses: Fix memory leaks, invalid accese, and mistake.
+	+ commit a87d9e8f89f946a733c756c72bf5ec41e0a738b8
+	* pinentry/pinentry-curses.c (dialog_create): Free NEW.
+	[HAVE_NCURSESW] (dialog_run): Free OLD_CTYPE on error.
+	* pinentry/pinentry.c (pinentry_inq_genpin): Free VALUE on error.
+	* tty/pinentry-tty.c (tty_cmd_handler): Don't access closed FDs.
+	* pinentry/pinentry-emacs.c (set_labels): Fix for ->default_cancel.
+
+2021-02-23  Damien Goutte-Gattat  <dgouttegattat@incenp.org>
+
+	qt: Honor the --disable-rpath option.
+	+ commit 6e8ad3150566d16a20cb3b54267191bcb0c14208
+	* m4/qt.m4: Do not set rpath if --disable-rpath has been specified
+	at configure time.
+
+2021-02-19  Ingo Klöcker  <dev@ingo-kloecker.de>
+
+	build: Make EFL libraries optional unless EFL is explicitly wanted.
+	+ commit d09e7de3df65b22ae2e606e5c9e32dda260c8bef
+	* configure.ac: Build pinentry-efl if EFL libraries are found. If EFL
+	libraries are not found, then warn or error out depending on whether EFL
+	is explicitly requested or not.
+
+2021-02-18  Daniel Kahn Gillmor  <dkg@fifthhorseman.net>
+
+	build: Simplfy use of pkg-config when testing for EFL.
+	+ commit 19a18ba5fee049aac87b5114763095aaeb42430f
+	* configure.ac: use standard PKG_CONFIG macros when testing for EFL
+	libraries.
+
+	GnuPG-Bug-Id: T5308
+
+2021-02-16  Bertrand Jacquin  <bertrand@jacquin.bzh>
+
+	efl: Convert pinentry description to markup.
+	+ commit d6a3a048f172cf79869d1a0c0bc1e1c659e5dab7
+	* efl/pinentry-efl.c (create_window): Convert all UI strings to markup
+	text.
+
+2021-02-13  Bertrand Jacquin  <bertrand@jacquin.bzh>
+
+	efl: Ensure pinentry window is activated.
+	+ commit 8fcbc9f40102d083db7a4acff2445e546ff5ec8b
+	* efl/pinentry-efl.c (create_window): Call elm_win_activate.
+
+2021-01-26  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Fix build against Qt4.
+	+ commit 2859eddfb0c935d3f9eb9ccc1b42c121621123e9
+	* qt/main.cpp: Ifdef out QWindow usage.
+	* qt/pinentrydialog.cpp: Only call the raiseWindow delayed when
+	using Qt5.
+
+2021-01-18  Damien Goutte-Gattat  <dgouttegattat@incenp.org>
+
+	build: Fix make dist with newer Automake.
+	+ commit b3e83681119e74a7a084310cd1ab14170cb549d5
+	* qt/Makefile.am: Make sure .moc files are only built if needed.
+	* tqt/Makefile.am: Likewise.
+
+2020-12-21  NIIBE Yutaka  <gniibe@fsij.org>
+
+	gtk+-2: Avoid use of deprecated API.
+	+ commit de1829f81f31df37912198dda4a0c31c75a79c01
+	* gtk+-2/pinentry-gtk-2.c (create_window): Use
+	gtk_widget_set_can_default.
+
+2020-11-20  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Disable generate button for now.
+	+ commit 749529cac2b050586518d8de145a55901d6158cd
+	* qt/pinentrydialog.cpp: Disable generate until we make it
+	prettier.
+
+2020-11-18  NIIBE Yutaka  <gniibe@fsij.org>
+
+	build: Update to newer autoconf constructs.
+	+ commit 5c83f6314e3fe6cb78d92e353263ac519821c927
+	* configure.ac: Use AC_USE_SYSTEM_EXTENSIONS instead of AC_GNU_SOURCE.
+	Use AS_HELP_STRING instead of AC_HELP_STRING.
+	* m4/gpg-error.m4: Update from libgpg-error.
+	* m4/libassuan.m4: Update from libassuan.
+
+2020-11-06  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Improve focus and frontness.
+	+ commit a421ae8c4d2a0ce182e099e634e49ccdad454627
+	* qt/pinentrydialog.cpp (raiseWindow): Use QtWindowsWindowFunctions
+	to get a more agressive bring to frontness.
+	(PinEntryDialog::PinEntryDialog): Start minimized.
+
+	qt: Fix crash when generate icon was not found.
+	+ commit cd2e69bfcf2630d7a61c4499b49c21790a1821d1
+	* qt/pinentrydialog.cpp (PinEntryDialog::setGenpinLabel)
+	(PinEntryDialog::setGenpinTT): Check for NULL.
+
+	qt: Silence deprecation warning.
+	+ commit e4f1681550b1c42c062bc0e209947f13351cf02c
+	* qt/pinentrydialog.cpp (PinEntryDialog::setDescription): QString::null
+	is deprecated.
+
+	qt: Add genpin suppport.
+	+ commit 340e3ef6f4fc1136bc38691745aeb651cbf263a1
+	* pinentry/pinentry.c (pinentry_inq_genpin): New. Based on
+	inq_quality.
+	(cmd_setgenpin_tt, cmd_setgenpin_label): New string helpers.
+	(register_commands): Register stringhelper commands.
+	* pinentry/pinentry.h (struct pinentry): Add new variables for
+	label and tooltips.
+	* qt/main.cpp (qt_cmd_handler): Set up labels.
+	* qt/pinentrydialog.cpp (PinEntryDialog::PinEntryDialog): Add
+	generate action if label is provided.
+	(PinEntryDialog::setGenpinLabel): New.
+	(PinEntryDialog::setGenpinTT): New.
+	(PinEntryDialog::textChanged): Hide generate action if text
+	is entered.
+	(PinEntryDialog::generatePin): Inquire generate.
+	(PinEntryDialog::toggleVisibility): Allow calls from other
+	senders.
+
+2020-05-08  Andre Heinecke  <aheinecke@gnupg.org>
+
+	curses: Fix build with ncurses 6.2.
+	+ commit ae584040d14a4d7d6eed8be77844126130ef0118
+	* pinentry/pinentry-curses.c (curses_cmd_handler): Use
+	renamed variable.
+	* pinentry/pinentry.c (pinentry_reset, pinentry_parse_opts)
+	(option_handler, cmd_getinfo) Use renamed variable.
+	* pinentry/pinentry.h (struct pinentry): Rename ttytype to
+	ttytype_l.
+
+2020-01-10  David Faure  <faure@kde.org>
+
+	qt: Add rpath so the Qt libs are found at runtime.
+	+ commit 971d1365ab16279bb33312583c320008e391f26e
+	* configure.ac: Add PINENTRY_QT_LDFLAGS variable.
+	* m4/qt.m4: Check qt libdir and add it to LDFLAGS.
+	* qt/Makefile.am: Use PINENTRY_QT_LDFLAGS.
+
+2019-12-05  NIIBE Yutaka  <gniibe@fsij.org>
+
+	build: Require newer GTK+2 (>= 2.12.0).
+	+ commit 099b79fc2d6638598b94161e1162a55af8a95531
+	* configure.ac: Check gtk+-2.0 >= 2.12.0.
+
+	gtk: Remove support of old GTK+2 (< 2.12.0).
+	+ commit edbd0d61b35fe7408cb879c0bd81daf42accb5ed
+	* gtk+-2/pinentry-gtk-2.c (tooltips): Remove
+	(create_window): Remove use of tooltips, but use
+	gtk_widget_set_tooltip_text.
+
+2019-11-14  Werner Koch  <wk@gnupg.org>
+
+	core: Allow to query info about the emacn integration.
+	+ commit 02a4f2fa0d8c8a63e72b9b9924b2817bfacce09a
+	* pinentry/pinentry-emacs.c (pinentry_emacs_status): New.
+	* pinentry/pinentry.c (cmd_getinfo): Add emacs info getinfo.
+
+	emacs: Handle options before trying to conenct to emacs.
+	+ commit f4b896ab75ba6536e78c56d377ad5ab6ff69b944
+	* emacs/pinentry-emacs.c (main): Parse options first.
+
+2019-07-25  Andre Heinecke  <aheinecke@gnupg.org>
+
+	qt: Fix use of dangling pointer in QApplication.
+	+ commit 0e2e53c8987d6f236aaef515eb005e8e86397fbc
+	* qt/main.cpp (main): Use a new variable for argc that stays
+	valid.
+
+2019-07-10  NIIBE Yutaka  <gniibe@fsij.org>
+
+	curses: Fix more.
+	+ commit dad35d65f05eb1c15589a7e4755dcae6aed2d6cf
+	* pinentry/pinentry-curses.c (dialog_create): Reverting was not
+	enough.  Correctly check with the character at len - 1.
+
+2019-07-09  NIIBE Yutaka  <gniibe@fsij.org>
+
+	curses: Fix handling of newline in description.
+	+ commit a03f3920714830b1f09b48f41be5a0aa8177f11a
+	* pinentry/pinentry-curses.c (collect_line): LEN including the
+	newline/null character.
+	(dialog_create): Fix the caluculation.
+
+	curses: Fix width calculation.
+	+ commit 67a7cfa12d1525097d9822124c9bd05207204a60
+	* pinentry/pinentry-curses.c (collect_line): Fix caluculation
+	where skipping the first character and adding 1 column.
+
+	curses: Fix calculation of columns for CJK text.
+	+ commit 9298cca67742df946efb9ba268a04904339454f1
+	* pinentry/pinentry-curses.c (STRWIDTH): New.
+	(collect_line): Let return value for columns width.
+	LEN minus one.
+	(dialog_create): Calculate for the columns with STRWIDTH.
+
+2019-06-27  NIIBE Yutaka  <gniibe@fsij.org>
+
+	tty: Confirmation is not by line edit mode.
+	+ commit f6e84ce0a34c5314999ac9af2f1d360c157b1ed5
+	* tty/pinentry-tty.c (terminal_setup): Support single char mode.
+
+	tty: Support line editing by system.
+	+ commit 531b92300c58aee665b55d1dffa7ffb4027cba20
+	* tty/pinentry-tty.c (terminal_setup): Not cbreak, but only no echo.
+	(confirm, read_password): Don't do editing here.
+	[HAVE_DOSISH_SYSTEM] (confirm, read_password): Return
+	GPG_ERR_FULLY_CANCELED when EINTR and it's not timed out.
+	(tty_cmd_handler): Call sigaction for SIGINT.
+
+	Exit the loop on an error with GPG_ERR_FULLY_CANCELED.
+	+ commit b176a8ac0dcd682549084cbf02876a550226d722
+	* pinentry/pinentry.c (cmd_getpin, cmd_confirm): Set
+	ASSUAN_FORCE_CLOSE flag when GPG_ERR_FULLY_CANCELED.
+
+	tty: Factor out terminal setup into tty_cmd_handler.
+	+ commit 89add7b733138d7fe86d348be57873936cab3112
+	* tty/pinentry-tty.c (terminal_save, terminal_restore): New.
+	(terminal_setup): Rename from cbreak.
+	(confirm, read_password): Don't touch terminal setting here.
+	(tty_cmd_handler): Do terminal setting/restore here.
+
+2019-06-10  Ineiev  <ineiev@gnu.org>
+
+	tty: Show supplied message when using default.
+	+ commit 95743b2cd7361aab10c5eb4f430928d09ce9c214
+	* tty/pinentry-tty.c (fputs_highlighted): New function.
+	(button): Display the supplied text when falling back to default; the
+	default text is shown in braces and provides the accelerator.
+
+2019-05-13  NIIBE Yutaka  <gniibe@fsij.org>
+
+	build: Update m4/iconv.m4.
+	+ commit 42c32e08d5a428627e5f74e0ab2bf4102e511b40
+	* m4/iconv.m4: Update from gettext 0.20.1.
+
+2019-04-17  Daniel Kahn Gillmor  <dkg@fifthhorseman.net>
+
+	gnome3: correctly detect when no GNOME screenlock exists.
+	+ commit f74c4673e6b60508012c14f7574dbc3215345210
+	* gnome3/pinentry-gnome3.c (pe_gnome_screen_locked): skip
+	G_IO_ERROR_IS_DIRECTORY responses, not G_IO_ERROR_TIMED_OUT responses
+	from dbus.
+
+2019-04-17  Zephaniah E. Loss-Cutler-Hull  <zephaniah@gmail.com>
+
+	gnome3: Use the default dbus timeout when checking for screenlock.
+	+ commit 65d2c6d5911ab04b19f953153d01116198cc4cb8
+	* gnome3/pinentry-gnome3.c (pe_gnome_screen_locked): use default dbus
+	timeout instead of 0ms.
+
+2019-03-04  NIIBE Yutaka  <gniibe@fsij.org>
+
+	Update gpg-error.m4 and libassuan.m4 from corresponding repos.
+	+ commit 6ddcc92cf6e9a904a5c98982709edeb42034843d
+	* m4/gpg-error.m4: Update.
+	* m4/libassuan.m4: Update.
+
+2019-02-10  Damien Goutte-Gattat  <dgouttegattat@incenp.org>
+
+	build: Add --disable-doc option.
+	+ commit 8f8d907f53b2749642ee273e2cec28f7d68f26ff
+	* configure.ac (BUILD_DOC): Add new am_conditional.
+	* Makefile.am: Skip doc subdir if BUILD_DOC is not set.
+
+2019-02-10  Damien Goutte-Gattat  <dgouttegattat@incenp.org>
+	    Michael Bäuerle
+
+	fltk: Handle '_' in button labels as keyboard shortcuts.
+	+ commit 21f0883059c84de7145d402877cd178fcfed44e3
+	* fltk/main.cxx (convert_accel_utf8): New method.
+	(fltk_cmd_handler): Calls previous method to escape button labels.
+
+2019-02-10  Daniel Kahn Gillmor  <dkg@fifthhorseman.net>
+
+	fltk: Fix formatting escapes.
+	+ commit a60e4f8142159b3e2df10d8d725b9680be5b4616
+	* fltk/main.cxx (fltk_cmd_handler): Fix calls to fl_message()
+	and fl_choice() functions.
+
+2018-08-22  Damien Goutte-Gattat via Gnupg-devel  <gnupg-devel@gnupg.org>
+
+	Disallow echo disabling when prompting for a PIN.
+	+ commit d0eaec8ef60be9b4d1aa5993c11d261a35202a2e
+	* gtk+-2/pinentry-gtk-2.c (create_window): Do not setup
+	the backspace handler when prompting for a PIN.
+	callback only when not prompting for a PIN.
+	* qt/pinentrydialog.h (_got_input): Rename field to
+	_disable_echo_allowed.
+	* qt/pinentrydialog.cpp (PinEntryDialog::setPrompt): Disallow
+	echo disabling when prompting for a PIN.
+	* tqt/pinentrydialog.h (_got_input): Rename field to
+	_disable_echo_allowed.
+	* tqt/pinentrydialog.cpp (PinEntryDialog::setPrompt): Disallow
+	echo disabling when prompting for a PIN.
+
+2018-08-15  Damien Goutte-Gattat via Gnupg-devel  <gnupg-devel@gnupg.org>
+
+	tqt: Disable echoing if backspace is pressed first.
+	+ commit 0fb3392f61569cb93e52c81465bc8e4636bca3b7
+	* tqt/secqlineedit.h (backspacePressed): New signal.
+	* tqt/secqinternal.cpp (SecTQLineEdit::backspace): Emit new signal.
+	* tqt/pinentrydialog.h (_got_input): New member field.
+	(onBackspace): New slot.
+	* tqt/pinentrydialog.cpp (onBackspace): New slot.
+	(PinEntryDialog::updateQuality): Prevent echo disabling as soon as
+	the text has been edited.
+
+	qt: Disable echoing if backspace is pressed first.
+	+ commit a75786a11666a080cae67f6e386163fcf93ff233
+	* qt/pinlineedit.h: New file.
+	* qt/pinlineedit.cpp: New file.
+	* qt/Makefile.am: Add new source files.
+	* qt/pinentrydialog.cpp (PinEntryDialog): New member _got_input;
+	Type of _edit member changed to PinLineEdit.
+	(PinEntryDialog::onBackspace): New slot.
+
+	gtk: Disable echoing if backspace is pressed first.
+	+ commit 4b06bc6009011a84e5e8d4da2f01659f35e5a2d5
+	* gtk+-2/pinentry-gtk-2.c (backspace_handler): New callback.
+	(create_window): Attach previous callback to "backspace" signal.
+
+	curses: Disable echoing if backspace is pressed first.
+	+ commit fd22facabd784586f72eeecc72830620a534929c
+	* pinentry/pinentry-curses.c (struct dialog): New fields got_input,
+	no_echo.
+	(dialog_input): Disable echoing and display instead "[no echo]" if
+	the backspace key is pressed first.
+
+2018-06-13  Werner Koch  <wk@gnupg.org>
+
+	core: Add info about tty mode etc to 'getinfo ttyinfo'
+	+ commit 779b8e6df7d2678d40bc61ba9e9ff35324a40d03
+	* configure.ac: Check for 'stat'.
+	* pinentry/pinentry.c: Include types.h and stat.h.
+	(device_stat_string): New.
+	(cmd_getinfo): Print more info.
+
+2018-05-29  William L. Thomson Jr  <wlt@o-sinc.com>
+
+	efl: Add an EFL-based pinentry.
+	+ commit 948105b7a34ec9a9e5479d376b7c86bafee50a01
+	* NEWS: Update.
+	* Makefile.am: Add new efl subdirectory.
+	* configure.ac: Add --enable-pinentry-efl option.
+	* efl/Makefile.am: New file.
+	* efl/pinentry-efl.c: New file.
+
+2018-03-05  Andre Heinecke  <aheinecke@intevation.de>
+
+	qt: Try again to fix Windows Window Management.
+	+ commit fa817f00363cdc305728ece6139d76361c77f361
+	* qt/pinentrydialog.cpp (raiseWindow): Activate Window and
+	disable windows hacks.
+	(PinEntryDialog::PinEntryDialog): Delay setFocus after the
+	event loop returns.
+
+2018-03-01  Andre Heinecke  <aheinecke@intevation.de>
+
+	qt: Renable Windows Foreground Window hacks.
+	+ commit 141fd941a58f70692cb6244f011e54b005d2195c
+	* qt/main.cpp, qt/pinentryconfirm.cpp: Use raiseWindow again.
+	* qt/pinentrydialog.cpp: Renable Foreground Window hacks.
+
+2018-02-28  Andre Heinecke  <aheinecke@intevation.de>
+
+	qt: Clean up foreground window code.
+	+ commit 84d473f5c323a3001374b0db736af9be4e3478a3
+	* qt/main.cpp (ForeignWidget): Remove. This did nothing
+	with Qt 5.
+	(setup_foreground_window): New helper to set parent and
+	window flags.
+	(qt_cmd_handler): Use setup_foreground_window.
+	* qt/pinentrydialog.cpp: Disable Windows API hacks.
+
+2018-02-06  Daniel Kahn Gillmor  <dkg@fifthhorseman.net>
+
+	tqt: use UTF-8 instead of ISO-8859-1.
+	+ commit 822c66815b5072281563fc4faa055493d20d660d
+
+
 2017-12-03  Werner Koch  <wk@gnupg.org>
 
 	Release 1.1.0.

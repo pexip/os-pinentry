@@ -19,37 +19,38 @@
 # SPDX-License-Identifier: GPL-2.0+
 
 # (Process this file with autoconf to produce a configure script.)
-AC_PREREQ(2.69)
+AC_PREREQ([2.69])
 min_automake_version="1.14"
 
 # To build a release you need to create a tag with the version number
 # (git tag -s pinentry-n.m.k) and run "./autogen.sh --force".  Please
-# bump the version number immediately after the release, do another
-# commit, and a push so that the git magic is able to work.
-m4_define(mym4_version, [1.1.0])
+# bump the version number immediately after the release and do another
+# commit and push so that the git magic is able to work.
+m4_define([mym4_package],[pinentry])
+m4_define([mym4_major], [1])
+m4_define([mym4_minor], [2])
+m4_define([mym4_micro], [1])
 
 # Below is m4 magic to extract and compute the git revision number,
 # the decimalized short revision number, a beta version string and a
-# flag indicating a development version (mym4_isgit).  Note that the
+# flag indicating a development version (mym4_isbeta).  Note that the
 # m4 processing is done by autoconf and not during the configure run.
-m4_define([mym4_revision], m4_esyscmd([git branch -v 2>/dev/null \
-          | awk '/^\* / {printf "%s",$3}']))
-m4_define([mym4_revision_dec],
-          m4_esyscmd_s([echo $((0x$(echo ]mym4_revision[|head -c 4)))]))
-m4_define([mym4_betastring],
-          m4_esyscmd_s([git describe --match 'pinentry-[0-9].[0-9].*[0-9]' \
-                           --long|  awk -F- '$3!=0{print"-beta"$3}']))
-m4_define([mym4_isgit],m4_if(mym4_betastring,[],[no],[yes]))
-m4_define([mym4_full_version],[mym4_version[]mym4_betastring])
+m4_define([mym4_verslist], m4_split(m4_esyscmd([./autogen.sh --find-version] \
+                           mym4_package mym4_major mym4_minor mym4_micro),[:]))
+m4_define([mym4_isbeta],       m4_argn(2, mym4_verslist))
+m4_define([mym4_version],      m4_argn(4, mym4_verslist))
+m4_define([mym4_revision],     m4_argn(7, mym4_verslist))
+m4_define([mym4_revision_dec], m4_argn(8, mym4_verslist))
+m4_esyscmd([echo ]mym4_version[>VERSION])
 
-AC_INIT([pinentry],[mym4_full_version], [https://bugs.gnupg.org])
+AC_INIT([mym4_package],[mym4_version],[https://bugs.gnupg.org])
 
 AC_CONFIG_AUX_DIR([build-aux])
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR(pinentry/pinentry.h)
 AM_INIT_AUTOMAKE([serial-tests dist-bzip2 no-dist-gzip])
 
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 
 AM_MAINTAINER_MODE
 
@@ -217,11 +218,10 @@ fi
 
 
 # Checks for header files.
-AC_HEADER_STDC
 AC_CHECK_HEADERS(string.h unistd.h langinfo.h termio.h locale.h utime.h wchar.h)
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(seteuid stpcpy mmap)
+AC_CHECK_FUNCS(seteuid stpcpy mmap stat)
 GNUPG_CHECK_MLOCK
 
 dnl Checks for standard types.
@@ -272,30 +272,16 @@ COMMON_LIBS="$LIBASSUAN_LIBS $COMMON_LIBS"
 
 
 dnl Checks for libsecmem.
-GNUPG_CHECK_TYPEDEF(byte, HAVE_BYTE_TYPEDEF)
-GNUPG_CHECK_TYPEDEF(ulong, HAVE_ULONG_TYPEDEF)
-
-dnl Check for libcap
-AC_ARG_WITH([libcap], AC_HELP_STRING([--without-libcap],
-            [Disable support for capabilities library]))
-
-if test "x$with_libcap" != "xno"; then
-  AC_PATH_PROG(SETCAP, setcap, :, "$PATH:/sbin:/usr/sbin")
-  AC_CHECK_LIB(cap, cap_set_proc, [
-    AC_DEFINE(USE_CAPABILITIES,1,[The capabilities support library is installed])
-    LIBCAP=-lcap
-  ])
-fi
-AC_SUBST(LIBCAP)
+AC_CHECK_TYPES([byte, ulong, u64])
 
 dnl
 dnl Check for curses pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-curses,
-            AC_HELP_STRING([--enable-pinentry-curses], [build curses pinentry]),
+            AS_HELP_STRING([--enable-pinentry-curses],[build curses pinentry]),
             pinentry_curses=$enableval, pinentry_curses=maybe)
 AC_ARG_ENABLE(fallback-curses,
-            AC_HELP_STRING([--enable-fallback-curses], [include curses fallback]),
+            AS_HELP_STRING([--enable-fallback-curses],[include curses fallback]),
             fallback_curses=$enableval, fallback_curses=maybe)
 
 dnl
@@ -340,7 +326,7 @@ dnl
 dnl Check for tty pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-tty,
-            AC_HELP_STRING([--enable-pinentry-tty], [build tty pinentry]),
+            AS_HELP_STRING([--enable-pinentry-tty],[build tty pinentry]),
             pinentry_tty=$enableval, pinentry_tty=maybe)
 AM_CONDITIONAL(BUILD_PINENTRY_TTY, test "$pinentry_tty" = "yes")
 
@@ -369,21 +355,18 @@ dnl
 dnl Check for emacs pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-emacs,
-            AC_HELP_STRING([--enable-pinentry-emacs], [build emacs pinentry]),
+            AS_HELP_STRING([--enable-pinentry-emacs],[build emacs pinentry]),
             pinentry_emacs=$enableval, pinentry_emacs=no)
 AC_ARG_ENABLE(inside-emacs,
-            AC_HELP_STRING([--enable-inside-emacs], [include emacs hack]),
+            AS_HELP_STRING([--enable-inside-emacs],[include emacs hack]),
             inside_emacs=$enableval, inside_emacs=maybe)
 
 if test "$pinentry_emacs" != "no" -o "$inside_emacs" != "no"; then
   AC_MSG_CHECKING([if Unix domain socket is supported])
-  AC_TRY_COMPILE([
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include <sys/socket.h>
 #include <sys/un.h>
-],
-	         [int s = socket (AF_UNIX, SOCK_STREAM, 0);],
-		 [_unixsock_works=yes],
-		 [_unixsock_works=no])
+]], [[int s = socket (AF_UNIX, SOCK_STREAM, 0);]])],[_unixsock_works=yes],[_unixsock_works=no])
   AC_MSG_RESULT($_unixsock_works)
   if test "$_unixsock_works" = "yes"; then
     if test "$pinentry_emacs" != "no"; then
@@ -419,21 +402,50 @@ fi
 
 
 dnl
+dnl Check for EFL pinentry programs.
+dnl
+AC_ARG_ENABLE(pinentry-efl,
+            AS_HELP_STRING([--enable-pinentry-efl],[build EFL pinentry]),
+            pinentry_efl=$enableval, pinentry_efl=maybe)
+
+if test "$pinentry_efl" != "no"; then
+	PKG_CHECK_MODULES(
+		EFL,
+		[elementary >= 1.18,ecore-x],
+		[
+			pinentry_efl=yes
+		],
+		[
+			if test "$pinentry_efl" = "yes"; then
+			        AC_MSG_ERROR([[
+***
+*** efl (elementary >= 1.18, ecore-x) is required for pinentry-efl.
+***]])
+			else
+				AC_MSG_WARN([pkg-config could not find the modules elementary or ecore-x])
+			fi
+                        pinentry_efl=no
+		]
+	)
+fi
+AM_CONDITIONAL(BUILD_PINENTRY_EFL, test "$pinentry_efl" = "yes")
+
+dnl
 dnl Check for GTK+-2 / GNOME3 pinentry programs.
 dnl
 AC_ARG_ENABLE(pinentry-gtk2,
-            AC_HELP_STRING([--enable-pinentry-gtk2], [build GTK+-2 pinentry]),
+            AS_HELP_STRING([--enable-pinentry-gtk2],[build GTK+-2 pinentry]),
             pinentry_gtk_2=$enableval, pinentry_gtk_2=maybe)
 
 AC_ARG_ENABLE(pinentry-gnome3,
-            AC_HELP_STRING([--enable-pinentry-gnome3], [build GNOME 3 pinentry]),
+            AS_HELP_STRING([--enable-pinentry-gnome3],[build GNOME 3 pinentry]),
             pinentry_gnome_3=$enableval, pinentry_gnome_3=maybe)
 
 dnl check if the module gtk+-2.0 exists
 if test "$pinentry_gtk_2" != "no"; then
 	PKG_CHECK_MODULES(
 		GTK2,
-		[gtk+-2.0 >= 2.4.0],
+		[gtk+-2.0 >= 2.12.0],
 		[
 			test "$pinentry_gtk_2" != "no" && pinentry_gtk_2=yes
 			test "$pinentry_gnome_3" != "no" && pinentry_gnome_3=yes
@@ -467,8 +479,8 @@ dnl
 dnl Check for libsecret.
 dnl
 AC_ARG_ENABLE(libsecret,
-            AC_HELP_STRING([--enable-libsecret],
-	    [optionally cache passphrases using libsecret]),
+            AS_HELP_STRING([--enable-libsecret],
+            [optionally cache passphrases using libsecret]),
             libsecret=$enableval, libsecret=maybe)
 
 dnl check if the module libsecret exists
@@ -493,24 +505,61 @@ if test "$libsecret" = "yes"; then
 fi
 
 dnl
-dnl Check for Qt pinentry program.
+dnl Check for libX11 library
+dnl
+have_x11=no
+if test "$have_w32_system" != "yes"; then
+	PKG_CHECK_MODULES(
+		LIBX11,
+		[x11],
+		[have_x11=yes],
+		[
+			AC_MSG_WARN([pkg-config could not find the module x11])
+			have_x11=no
+		]
+	)
+
+	if test "$have_x11" = "yes"; then
+		AC_DEFINE(HAVE_X11, 1,
+			[The pinentries can optionally use x11.])
+	fi
+fi
+
+dnl
+dnl Check for KF5WaylandClient library
+dnl
+have_kf5waylandclient=no
+if test "$have_w32_system" != "yes"; then
+	PKG_CHECK_MODULES(
+		KF5WAYLANDCLIENT,
+		[KF5WaylandClient >= 5.60],
+		[have_kf5waylandclient=yes],
+		[
+			AC_MSG_WARN([pkg-config could not find the module KF5WaylandClient])
+			have_kf5waylandclient=no
+		]
+	)
+fi
+
+dnl
+dnl Check for Qt5 pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-qt,
-            AC_HELP_STRING([--enable-pinentry-qt], [build qt pinentry]),
+            AS_HELP_STRING([--enable-pinentry-qt],[build Qt5 pinentry]),
             pinentry_qt=$enableval, pinentry_qt=maybe)
 
 
 dnl
 dnl Checks for qt libraries.  Deal correctly with $pinentry_qt = maybe.
-dnl Tries to find Qt5, falls back on Qt4
+dnl Tries to find Qt5
 dnl
 if test "$pinentry_qt" != "no"; then
   FIND_QT
-  if test "$have_qt4_libs" != "yes" -a "$have_qt5_libs" != "yes"; then
+  if test "$have_qt5_libs" != "yes"; then
     if test "$pinentry_qt" = "yes"; then
         AC_MSG_ERROR([[
     ***
-    *** Qt4 (QtCore, QtGui) or Qt5 (Qt5Core, Qt5Gui, Qt5Widgets) is required.
+    *** Qt5 (Qt5Core, Qt5Gui, Qt5Widgets) is required.
     ***]])
     else
         pinentry_qt=no
@@ -520,6 +569,7 @@ fi
 
 AC_SUBST(PINENTRY_QT_CFLAGS)
 AC_SUBST(PINENTRY_QT_LIBS)
+AC_SUBST(PINENTRY_QT_LDFLAGS)
 AC_SUBST(MOC)
 
 dnl If we have come so far, qt pinentry can be build.
@@ -529,18 +579,65 @@ fi
 AM_CONDITIONAL(BUILD_PINENTRY_QT, test "$pinentry_qt" = "yes")
 if test "$pinentry_qt" = "yes"; then
   AC_DEFINE(PINENTRY_QT, 1, [The qt version of Pinentry is to be build])
-  if test "$have_qt4_libs" = "yes"; then
-    pinentry_qt_lib_version="(Qt4)"
-  else
-    pinentry_qt_lib_version="(Qt5)"
+fi
+if test "$have_qt5_x11extras" = "yes"; then
+  AC_DEFINE(PINENTRY_QT_X11, 1, [pinentry-qt should use x11.])
+fi
+if test "$have_kf5waylandclient" = "yes"; then
+  PINENTRY_QT_CFLAGS="$KF5WAYLANDCLIENT_CFLAGS $PINENTRY_QT_CFLAGS -fpic"
+  PINENTRY_QT_LIBS="$KF5WAYLANDCLIENT_LIBS $PINENTRY_QT_LIBS"
+  AC_DEFINE(PINENTRY_QT_WAYLAND, 1, [pinentry-qt should use KF5WaylandClient.])
+else
+  if test "$have_w32_system" != "yes"; then
+    AC_MSG_WARN([pinentry-qt will be built without Caps Lock warning on Wayland])
   fi
+fi
+
+dnl
+dnl Check for Qt4 pinentry program.
+dnl
+AC_ARG_ENABLE(pinentry-qt4,
+            AS_HELP_STRING([--enable-pinentry-qt4],[build Qt4 pinentry]),
+            pinentry_qt4=$enableval, pinentry_qt4=maybe)
+
+
+dnl
+dnl Checks for Qt4 libraries.  Deal correctly with $pinentry_qt4 = maybe.
+dnl Tries to find Qt4
+dnl
+if test "$pinentry_qt4" != "no"; then
+  FIND_QT4
+  if test "$have_qt4_libs" != "yes"; then
+    if test "$pinentry_qt4" = "yes"; then
+        AC_MSG_ERROR([[
+    ***
+    *** Qt4 (QtCore, QtGui) is required.
+    ***]])
+    else
+        pinentry_qt4=no
+    fi
+  fi
+fi
+
+AC_SUBST(PINENTRY_QT4_CFLAGS)
+AC_SUBST(PINENTRY_QT4_LIBS)
+AC_SUBST(PINENTRY_QT4_LDFLAGS)
+AC_SUBST(MOC4)
+
+dnl If we have come so far, qt4 pinentry can be build.
+if test "$pinentry_qt4" != "no"; then
+    pinentry_qt4=yes
+fi
+AM_CONDITIONAL(BUILD_PINENTRY_QT4, test "$pinentry_qt4" = "yes")
+if test "$pinentry_qt4" = "yes"; then
+  AC_DEFINE(PINENTRY_QT4, 1, [The qt4 version of Pinentry is to be build])
 fi
 
 dnl
 dnl Check for TQt pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-tqt,
-	      AC_HELP_STRING([--enable-pinentry-tqt], [build tqt pinentry]),
+	      AS_HELP_STRING([--enable-pinentry-tqt],[build tqt pinentry]),
 	      pinentry_tqt=$enableval, pinentry_tqt=no)
 
 if test "$pinentry_tqt" != "no"; then
@@ -549,7 +646,8 @@ if test "$pinentry_tqt" != "no"; then
     AC_MSG_ERROR([[
     ***
     *** Building both Qt and TQt pinentries is not supported.
-    *** Use --disable-pinentry-qt if you want the TQt pinentry.
+    *** Use --disable-pinentry-qt and --disable-pinentry-qt4
+    *** if you want the TQt pinentry.
     ***]])
   fi
 
@@ -584,7 +682,7 @@ dnl
 dnl Check for FLTK pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-fltk,
-    AC_HELP_STRING([--enable-pinentry-fltk], [build FLTK 1.3 pinentry]),
+    AS_HELP_STRING([--enable-pinentry-fltk],[build FLTK 1.3 pinentry]),
            pinentry_fltk=$enableval, pinentry_fltk=maybe)
 
 dnl check for fltk-config
@@ -645,7 +743,15 @@ else
               if test "$pinentry_tqt" = "yes"; then
                 PINENTRY_DEFAULT=pinentry-tqt
               else
-                AC_MSG_ERROR([[No pinentry enabled.]])
+                if test "$pinentry_efl" = "yes"; then
+                  PINENTRY_DEFAULT=pinentry-efl
+                else
+                  if test "$pinentry_qt4" = "yes"; then
+                    PINENTRY_DEFAULT=pinentry-qt4
+                  else
+                    AC_MSG_ERROR([[No pinentry enabled.]])
+                  fi
+                fi
               fi
             fi
           fi
@@ -714,6 +820,12 @@ AH_BOTTOM([
 #endif /*GNUPG_CONFIG_H_INCLUDED*/
 ])
 
+build_doc=yes
+AC_ARG_ENABLE([doc], AS_HELP_STRING([--disable-doc],
+                                    [do not build the documentation]),
+                     build_doc=$enableval, build_doc=yes)
+AM_CONDITIONAL([BUILD_DOC], [test "x$build_doc" != xno])
+
 
 AC_CONFIG_FILES([
 m4/Makefile
@@ -721,10 +833,13 @@ secmem/Makefile
 pinentry/Makefile
 curses/Makefile
 tty/Makefile
+efl/Makefile
 emacs/Makefile
 gtk+-2/Makefile
 gnome3/Makefile
 qt/Makefile
+qt/icons/Makefile
+qt4/Makefile
 tqt/Makefile
 w32/Makefile
 fltk/Makefile
@@ -744,9 +859,11 @@ AC_MSG_NOTICE([
 	Curses Pinentry ..: $pinentry_curses
 	TTY Pinentry .....: $pinentry_tty
 	Emacs Pinentry ...: $pinentry_emacs
+	EFL Pinentry .....: $pinentry_efl
 	GTK+-2 Pinentry ..: $pinentry_gtk_2
 	GNOME 3 Pinentry .: $pinentry_gnome_3
-	Qt Pinentry ......: $pinentry_qt $pinentry_qt_lib_version
+	Qt5 Pinentry .....: $pinentry_qt
+	Qt4 Pinentry .....: $pinentry_qt4
 	TQt Pinentry .....: $pinentry_tqt
 	W32 Pinentry .....: $pinentry_w32
 	FLTK Pinentry ....: $pinentry_fltk

@@ -1,4 +1,4 @@
-This is pinentry.info, produced by makeinfo version 6.3 from
+This is pinentry.info, produced by makeinfo version 6.5 from
 pinentry.texi.
 
 INFO-DIR-SECTION GNU Utilities
@@ -8,8 +8,8 @@ END-INFO-DIR-ENTRY
 
 This file documents the use and the internals of the PINENTRY.
 
-   This is edition 1.1.0, last updated 3 December 2017, of 'The
-'PINEntry' Manual', for version 1.1.0.
+   This is edition 1.2.1, last updated 25 August 2021, of 'The
+'PINEntry' Manual', for version 1.2.1.
 
    Published by g10 Code GmbH
 Hüttenstr.  61
@@ -124,15 +124,15 @@ File: pinentry.info,  Node: Front ends,  Next: Protocol,  Prev: Using pinentry, 
 ************
 
 There are several different flavors of PINENTRY.  Concretely, there are
-Gtk+2, Qt 4, Gnome 3, Emacs, curses and tty variants.  These different
-implementations provide higher levels of integration with a specific
-environment.  For instance, the Gnome 3 PINENTRY uses Gnome 3 widgets to
-display the prompts.  For Gnome 3 users, this higher level of
-integration provides a more consistent aesthetic.  However, this comes
-at a cost.  Because this PINENTRY uses so many components, there is a
-larger chance of a failure.  In particular, there is a larger chance
-that the passphrase is saved in memory and that memory is exposed to an
-attacker (consider the OpenSSL Heartbeat vulnerability).
+Gtk+2, Qt 4/5, TQt, EFL, FLTK, Gnome 3, Emacs, curses and tty variants.
+These different implementations provide higher levels of integration
+with a specific environment.  For instance, the Gnome 3 PINENTRY uses
+Gnome 3 widgets to display the prompts.  For Gnome 3 users, this higher
+level of integration provides a more consistent aesthetic.  However,
+this comes at a cost.  Because this PINENTRY uses so many components,
+there is a larger chance of a failure.  In particular, there is a larger
+chance that the passphrase is saved in memory and that memory is exposed
+to an attacker (consider the OpenSSL Heartbeat vulnerability).
 
    To understand how many components touch the passphrase, consider
 again the Gnome 3 implementation.  When a user presses a button on the
@@ -288,6 +288,57 @@ encoded as '%25', etc.).
 
      With STRING being a percent escaped string shown as the tooltip.
 
+'Enable enforcement of passphrase constraints'
+     This will make the pinentry check whether the new passphrase
+     entered by the user satisfies the passphrase constraints before
+     passing the passphrase to gpg-agent and closing the pinentry.  This
+     gives the user the chance to modify the passphrase until the
+     constraints are satisfied without retyping the passphrase.
+            C: OPTION constraints-enforce
+            S: OK
+
+     To inform the user about the constraints a short hint and a longer
+     hint can be set using
+            C: OPTION constraints-hint-short=At least 8 characters
+            S: OK
+            C: OPTION constraints-hint-long=The passphrase must ...
+            S: OK
+
+     Additionally, a title for the dialog showing details in case of
+     unsatisfied constraints can be set using
+            C: OPTION constraints-error-title=Passphrase Not Allowed
+            S: OK
+
+     All strings have to be percent escaped.
+
+'Enable an action for generating a passphrase'
+     Adds an action for generating a random passphrase to the GETPIN
+     window.  The action is only available when asking for a new
+     passphrase, i.e.  if SETREPEAT has been called.
+            C: SETGENPIN Suggest
+            S: OK
+
+     If you want to provide a tooltip for the action, you may use
+            C: SETGENPIN_TT Suggest a random passphrase
+            S: OK
+
+'Enable passphrase formatting'
+     Passphrase formatting will group the characters of the passphrase
+     into groups of five characters separated by non-breaking spaces or
+     a similar separator.  This is useful in combination with passphrase
+     generation to make the generated passphrase easier readable.
+            C: OPTION formatted-passphrase
+            S: OK
+
+     Note: If passphrase formatting is enabled, then, depending on the
+     concrete pinentry, all occurrences of the character used as
+     separator may be stripped from the entered passphrase.
+
+     To provide a hint for the user that is shown if passphrase
+     formatting is enabled use
+            C: OPTION formatted-passphrase-hint=Blanks are not part of the passphrase.
+            S: OK
+
 'Ask for a PIN'
      The meat of this tool is to ask for a passphrase of PIN, it is done
      with this command:
@@ -366,7 +417,7 @@ encoded as '%25', etc.).
             C: getpin
             S: S PASSWORD_FROM_CACHE
             S: D 1234
-            C: OK
+            S: OK
 
      Note: if 'allow-external-password-cache' is not specified, an
      external password cache must not be used: this can lead to subtle
@@ -536,6 +587,49 @@ relevant elements that describe the layout:
 'quality_bar_tt'
      A tooltip for the quality bar.
 
+'constraints_enforce'
+     If this is not 0, then passphrase constraints are enforced by
+     gpg-agent.  In this case pinentry can use the
+     'pinentry_inq_checkpin' function for checking whether the new
+     passphrase satisfies the constraints before passing it to
+     gpg-agent.
+
+'constraints_hint_short'
+     A short translated hint for the user with the constraints for new
+     passphrases to be displayed near the passphrase input field.
+
+'constraints_hint_short'
+     A longer translated hint for the user with the constraints for new
+     passphrases to be displayed for example as tooltip.
+
+'constraints_error_title'
+     A short translated title for an error dialog informing the user
+     about unsatisfied passphrase constraints.
+
+'genpin_label'
+     If this is set, a generate action should be shown.  The value of
+     this field is a label for the action.
+
+     Note: Call the 'pinentry_inq_genpin' function to request a randomly
+     generated passphrase.
+
+'genpin_tt'
+     The tooltip for the generate action.
+
+'formatted_passphrase'
+     If this is not 0, then passphrase formatting should be enabled.  If
+     it is enabled, then the unmasked passphrase should be grouped into
+     groups of five characters separated by non-breaking spaces or a
+     similar separator.
+
+     To simplify the implementation all occurrences of the character
+     used as separator can be stripped from the entered passphrase, if
+     formatting is enabled.
+
+'formatted_passphrase_hint'
+     A hint to be shown if passphrase formatting is enabled.  It should
+     be shown near the passphrase input field.
+
 'default_pwmngr'
      If 'may_cache_password' and 'keyinfo' are set and the user
      consents, then the PINENTRY may cache the password with an external
@@ -555,6 +649,9 @@ relevant elements that describe the layout:
 'default-tt-hide'
      Tooltip for an action that would hide the password revealed by the
      action labeld with 'default-tt-visi'
+
+'default-capshint'
+     A hint to be shown if Caps Lock is on.
 
    When the handler is done, it should store the passphrase in 'pin', if
 appropriate.  This variable is allocated in secure memory.  Use
@@ -980,13 +1077,13 @@ Index
 
 
 Tag Table:
-Node: Top816
-Node: Using pinentry2241
-Node: Front ends4092
-Node: Protocol7644
-Node: Implementation Details16103
-Node: Copying23985
-Node: Option Index43164
-Node: Index44246
+Node: Top815
+Node: Using pinentry2240
+Node: Front ends4091
+Node: Protocol7660
+Node: Implementation Details18285
+Node: Copying27843
+Node: Option Index47022
+Node: Index48104
 
 End Tag Table

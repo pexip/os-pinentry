@@ -17,19 +17,18 @@ dnl You should have received a copy of the GNU General Public License
 dnl along with this program; if not, write to the Free Software
 dnl Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
-dnl Autoconf macro to find either Qt4 or Qt5
+dnl Autoconf macro to find Qt5
 dnl
 dnl sets PINENTRY_QT_LIBS and PINENTRY_QT_CFLAGS
 dnl
-dnl if QT5 was found have_qt5_libs is set to yes
-dnl if QT4 was found have_qt4_libs is set to yes
+dnl if Qt5 was found have_qt5_libs is set to yes
 dnl
 dnl The moc lookup code is based on libpoppler (rev. d821207)
 
 AC_DEFUN([FIND_QT],
 [
   AC_ARG_ENABLE(pinentry-qt5,
-                AC_HELP_STRING([--disable-pinentry-qt5],
+                AS_HELP_STRING([--disable-pinentry-qt5],
                            [Don't use qt5 even if it is available.]),
                 enable_pinentry_qt5=$enableval,
                 enable_pinentry_qt5="try")
@@ -57,6 +56,28 @@ AC_DEFUN([FIND_QT],
       PINENTRY_QT_CFLAGS="$PINENTRY_QT_CFLAGS -std=c++11"
     fi
 
+    qtlibdir=`"$PKG_CONFIG" --variable libdir Qt5Core`
+    if test -n "$qtlibdir"; then
+      if test "$enable_rpath" != "no"; then
+        PINENTRY_QT_LDFLAGS="$PINENTRY_QT_LDFLAGS -Wl,-rpath \"$qtlibdir\""
+      fi
+    fi
+
+    if test "$have_x11" = "yes"; then
+      PKG_CHECK_MODULES(
+        PINENTRY_QT_X11_EXTRAS,
+        Qt5X11Extras >= 5.1.0,
+        [have_qt5_x11extras="yes"],
+        [
+          AC_MSG_WARN([pinentry-qt will be built without Caps Lock warning on X11])
+          have_qt5_x11extras="no"
+        ])
+      if test "$have_qt5_x11extras" = "yes"; then
+        PINENTRY_QT_CFLAGS="$LIBX11_CFLAGS $PINENTRY_QT_CFLAGS $PINENTRY_QT_X11_EXTRAS_CFLAGS"
+        PINENTRY_QT_LIBS="$LIBX11_LIBS $PINENTRY_QT_LIBS $PINENTRY_QT_X11_EXTRAS_LIBS"
+      fi
+    fi
+
     AC_CHECK_TOOL(MOC, moc)
     AC_MSG_CHECKING([moc version])
     mocversion=`$MOC -v 2>&1`
@@ -82,31 +103,32 @@ AC_DEFUN([FIND_QT],
         MOC=$MOC2
       fi
     fi
-  fi
-  if test "$have_qt5_libs" != "yes"; then
-    PKG_CHECK_MODULES(PINENTRY_QT,
-                      QtCore >= 4.6.0 QtGui >= 4.6.0,
-                      [have_qt4_libs="yes"],
-                      [have_qt4_libs="no"])
-    if test "$have_qt4_libs" = "yes"; then
-      AC_CHECK_TOOL(MOC, moc)
-      AC_MSG_CHECKING([moc version])
-      mocversion=`$MOC -v 2>&1`
-      mocversiongrep=`echo $mocversion | grep "Qt 4"`
-      if test x"$mocversiongrep" != x"$mocversion"; then
-        AC_MSG_RESULT([no])
-        # moc was not the qt4 one, try with moc-qt4
-        AC_CHECK_TOOL(MOC2, moc-qt4)
-        mocversion=`$MOC2 -v 2>&1`
-        mocversiongrep=`echo $mocversion | grep "Qt 4"`
-        if test x"$mocversiongrep" != x"$mocversion"; then
-          # no valid moc found
-          have_qt4_libs="no";
-          MOC="not found"
+
+    AC_CHECK_TOOL(RCC, rcc)
+    AC_MSG_CHECKING([rcc version])
+    rccversion=`$RCC -v 2>&1`
+    rccversiongrep=`echo $rccversion | grep -E "Qt 5|rcc 5"`
+    if test x"$rccversiongrep" != x"$rccversion"; then
+      AC_MSG_RESULT([no])
+      # rcc was not the qt5 one, try with rcc-qt5
+      AC_CHECK_TOOL(RCC2, rcc-qt5)
+      rccversion=`$RCC2 -v 2>&1`
+      rccversiongrep=`echo $rccversion | grep -E "Qt 5|rcc-qt5 5|rcc 5"`
+      if test x"$rccversiongrep" != x"$rccversion"; then
+        AC_CHECK_TOOL(QTCHOOSER, qtchooser)
+        qt5tooldir=`QT_SELECT=qt5 qtchooser -print-env | grep QTTOOLDIR | cut -d '=' -f 2 | cut -d \" -f 2`
+        rccversion=`$qt5tooldir/rcc -v 2>&1`
+        rccversiongrep=`echo $rccversion | grep -E "Qt 5|rcc 5"`
+        if test x"$rccversiongrep" != x"$rccversion"; then
+          # no valid rcc found
+          have_qt5_libs="no";
         else
-          MOC=$MOC2
+          RCC=$qt5tooldir/rcc
         fi
+      else
+        RCC=$RCC2
       fi
     fi
+
   fi
 ])

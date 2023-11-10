@@ -1,6 +1,9 @@
 /* pinentryconfirm.h - A QMessageBox with a timeout
  *
  * Copyright (C) 2011 Ben Kibbey <bjk@luxsci.net>
+ * Copyright (C) 2022 g10 Code GmbH
+ *
+ * Software engineering by Ingo Klöcker <dev@ingo-kloecker.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,27 +23,42 @@
 #ifndef PINENTRYCONFIRM_H
 #define PINENTRYCONFIRM_H
 
+#include <QAccessible>
 #include <QMessageBox>
 #include <QTimer>
 
 class PinentryConfirm : public QMessageBox
+#ifndef QT_NO_ACCESSIBILITY
+    , public QAccessible::ActivationObserver
+#endif
 {
     Q_OBJECT
 public:
-    PinentryConfirm(Icon, int timeout, const QString &title,
-                    const QString &desc, StandardButtons buttons,
-                    QWidget *parent);
+    PinentryConfirm(Icon icon, const QString &title, const QString &text,
+                    StandardButtons buttons = NoButton, QWidget *parent = nullptr,
+                    Qt::WindowFlags flags = Qt::Dialog | Qt::MSWindowsFixedSizeDialogHint);
+    ~PinentryConfirm() override;
+
+    void setTimeout(std::chrono::seconds timeout);
+    std::chrono::seconds timeout() const;
+
     bool timedOut() const;
 
-private slots:
+protected:
+    void showEvent(QShowEvent *event) override;
+    bool focusNextPrevChild(bool next) override;
+
+private Q_SLOTS:
     void slotTimeout();
 
 private:
-    QTimer *_timer;
-    bool _timed_out;
+#ifndef QT_NO_ACCESSIBILITY
+    void accessibilityActiveChanged(bool active) override;
+#endif
 
-protected:
-    /* reimp */ void showEvent(QShowEvent *event);
+private:
+    QTimer _timer;
+    bool _timed_out = false;
 };
 
 #endif

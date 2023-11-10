@@ -498,7 +498,7 @@ set_labels (pinentry_t pe)
     set_label (pe, "SETOK", pe->default_ok);
   if (pe->cancel)
     set_label (pe, "SETCANCEL", pe->cancel);
-  else if (pe->default_ok)
+  else if (pe->default_cancel)
     set_label (pe, "SETCANCEL", pe->default_cancel);
   if (pe->notok)
     set_label (pe, "SETNOTOK", pe->notok);
@@ -678,6 +678,22 @@ pinentry_enable_emacs_cmd_handler (void)
      swap pinentry_cmd_handler to initial_emacs_cmd_handler.  */
   fallback_cmd_handler = pinentry_cmd_handler;
   pinentry_cmd_handler = initial_emacs_cmd_handler;
+}
+
+
+/* Returns true if the Emacs pinentry is enabled.  The value is 1
+ * before the first connection with Emacs has been done and 2 if the
+ * connection to Emacs has been establish.  Returns false if the Emacs
+ * pinentry is not enabled.  */
+int
+pinentry_emacs_status (void)
+{
+  if (pinentry_cmd_handler == initial_emacs_cmd_handler)
+    return 1;
+  else if (pinentry_cmd_handler == emacs_cmd_handler)
+    return 2;
+  else
+    return 0;
 }
 
 int

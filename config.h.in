@@ -31,8 +31,8 @@
 /* Defined if the mlock() call does not work */
 #undef HAVE_BROKEN_MLOCK
 
-/* Defined if a `byte' is typedef'd */
-#undef HAVE_BYTE_TYPEDEF
+/* Define to 1 if the system has the type `byte'. */
+#undef HAVE_BYTE
 
 /* Defined if we run on some of the PCDOS like systems (DOS, Windoze. OS/2)
    with special properties like no file modes */
@@ -41,7 +41,10 @@
 /* Defined if the OS supports drive letters. */
 #undef HAVE_DRIVE_LETTERS
 
-/* Define if you have the iconv() function. */
+/* Define to 1 if you have the `getpagesize' function. */
+#undef HAVE_GETPAGESIZE
+
+/* Define if you have the iconv() function and it works. */
 #undef HAVE_ICONV
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -71,11 +74,11 @@
 /* Define if you have working ncursesw */
 #undef HAVE_NCURSESW
 
-/* Define to 1 if you have the `plock' function. */
-#undef HAVE_PLOCK
-
 /* Define to 1 if you have the `seteuid' function. */
 #undef HAVE_SETEUID
+
+/* Define to 1 if you have the `stat' function. */
+#undef HAVE_STAT
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -92,6 +95,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the `sysconf' function. */
+#undef HAVE_SYSCONF
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
@@ -104,8 +110,11 @@
 /* Define to 1 if you have the <termio.h> header file. */
 #undef HAVE_TERMIO_H
 
-/* Defined if a `ulong' is typedef'd */
-#undef HAVE_ULONG_TYPEDEF
+/* Define to 1 if the system has the type `u64'. */
+#undef HAVE_U64
+
+/* Define to 1 if the system has the type `ulong'. */
+#undef HAVE_ULONG
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
@@ -121,6 +130,9 @@
 
 /* Define to 1 if you have the <wchar.h> header file. */
 #undef HAVE_WCHAR_H
+
+/* The pinentries can optionally use x11. */
+#undef HAVE_X11
 
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
@@ -158,14 +170,20 @@
 /* The qt version of Pinentry is to be build */
 #undef PINENTRY_QT
 
+/* The qt4 version of Pinentry is to be build */
+#undef PINENTRY_QT4
+
+/* pinentry-qt should use KF5WaylandClient. */
+#undef PINENTRY_QT_WAYLAND
+
+/* pinentry-qt should use x11. */
+#undef PINENTRY_QT_X11
+
 /* The TTY version of Pinentry is to be build */
 #undef PINENTRY_TTY
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* The capabilities support library is installed */
-#undef USE_CAPABILITIES
 
 /* Set this to limit filenames to the 8.3 format */
 #undef USE_ONLY_8DOT3
