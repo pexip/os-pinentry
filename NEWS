@@ -1,3 +1,69 @@
+Noteworthy changes in version 1.2.1 (2022-08-24)
+------------------------------------------------
+
+ * qt: Support building with Qt 5.9.  [T5592]
+
+ * curses: Handle an error at curses initialization.  [T5623]
+
+ * curses: Specify fg/bg when an extention of Ncurses is not available.
+   [T5631]
+
+ * qt: Fix translation of context menu entries.  [T5786]
+
+ * qt: Further improve the accessibility.  [T5863]
+
+ * qt: Fix moving focus to second input field when pressing Enter in
+   first input field.  [T5866]
+
+ * qt: Update the cursor position when reformatting the text.  [T5972]
+
+ * qt: Use foreground raising code also with the confirm prompt.
+   [T6134]
+
+ * Make the legacy qt4 version build again.  [T5569]
+
+ * Make sure an entered PIN is always cleared from memory.  [T5977]
+
+ * Build fixes for Windows.  [T5893]
+
+
+Noteworthy changes in version 1.2.0 (2021-08-25)
+------------------------------------------------
+
+ * qt: Show a warning if Caps Lock is on on Windows, X11 (requires
+   libX11 and Qt5X11Extras), and Wayland (requires KF5WaylandClient).
+   [T4950]
+
+ * qt: Support password formatting.  This makes generated passwords
+   easier to transcript. [T5517]
+
+ * qt: Fix showing of pinentry window on Wayland.  [T5528]
+
+ * qt: Check passphrase constraints before accepting passphrase if
+   passphrase constraints are requested to be enforced.  [T5532]
+
+ * qt: Improve detection of running in a GUI session.  [T3659]
+
+ * qt: Improve accessibility when entering new password.  [T5543]
+
+ Release-info: https://dev.gnupg.org/T5566
+
+
+Noteworthy changes in version 1.1.1 (2021-01-21)
+------------------------------------------------
+
+  * A EFL-based pinentry has been contributed.
+
+  * Disable echoing in backspace key is pressed first
+    (GTK, Qt, TQt, and ncurses pinentries).
+
+  * Support line editing in TTY pinentry.
+
+  * Remove support for old GTK+2 (< 2.12.0).
+
+  * Various minor fixes.
+
+
 Noteworthy changes in version 1.1.0 (2017-12-03)
 ------------------------------------------------
 

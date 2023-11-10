@@ -29,7 +29,29 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <iconv.h>
-#include <langinfo.h>
+#if defined(HAVE_LANGINFO_H)
+# include <langinfo.h>
+#elif defined(HAVE_W32_SYSTEM)
+# include <stdio.h>
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif
+# include <windows.h>
+/* A simple replacement for nl_langinfo that only understands
+   CODESET.  */
+# define CODESET 1
+char *
+nl_langinfo (int ignore)
+{
+  static char codepage[20];
+  UINT cp = GetACP ();
+
+  (void)ignore;
+
+  sprintf (codepage, "CP%u", cp);
+  return codepage;
+}
+#endif
 #include <limits.h>
 #include <string.h>
 #include <errno.h>
@@ -94,6 +116,8 @@ struct dialog
   int pin_max;
   /* Length of PIN.  */
   int pin_len;
+  int got_input;
+  int no_echo;
 
   int ok_y;
   int ok_x;
@@ -108,11 +132,154 @@ struct dialog
   pinentry_t pinentry;
 };
 typedef struct dialog *dialog_t;
+
+/* Flag to remember whether a warning has been printed.  */
+static int lc_ctype_unknown_warning;
 
+static char *
+pinentry_utf8_to_local (const char *lc_ctype, const char *text)
+{
+  iconv_t cd;
+  const char *input = text;
+  size_t input_len = strlen (text) + 1;
+  char *output;
+  size_t output_len;
+  char *output_buf;
+  size_t processed;
+  char *old_ctype;
+  char *target_encoding;
+  const char *pgmname = pinentry_get_pgmname ();
+
+  /* If no locale setting could be determined, simply copy the
+     string.  */
+  if (!lc_ctype)
+    {
+      if (! lc_ctype_unknown_warning)
+	{
+	  fprintf (stderr, "%s: no LC_CTYPE known - assuming UTF-8\n",
+		   pgmname);
+	  lc_ctype_unknown_warning = 1;
+	}
+      return strdup (text);
+    }
+
+  old_ctype = strdup (setlocale (LC_CTYPE, NULL));
+  if (!old_ctype)
+    return NULL;
+  setlocale (LC_CTYPE, lc_ctype);
+  target_encoding = nl_langinfo (CODESET);
+  if (!target_encoding)
+    target_encoding = "?";
+  setlocale (LC_CTYPE, old_ctype);
+  free (old_ctype);
+
+  /* This is overkill, but simplifies the iconv invocation greatly.  */
+  output_len = input_len * MB_LEN_MAX;
+  output_buf = output = malloc (output_len);
+  if (!output)
+    return NULL;
+
+  cd = iconv_open (target_encoding, "UTF-8");
+  if (cd == (iconv_t) -1)
+    {
+      fprintf (stderr, "%s: can't convert from UTF-8 to %s: %s\n",
+               pgmname, target_encoding, strerror (errno));
+      free (output_buf);
+      return NULL;
+    }
+  processed = iconv (cd, (ICONV_CONST char **)&input, &input_len,
+                     &output, &output_len);
+  iconv_close (cd);
+  if (processed == (size_t) -1 || input_len)
+    {
+      fprintf (stderr, "%s: error converting from UTF-8 to %s: %s\n",
+               pgmname, target_encoding, strerror (errno));
+      free (output_buf);
+      return NULL;
+    }
+  return output_buf;
+}
+
+/* Convert TEXT which is encoded according to LC_CTYPE to UTF-8.  With
+   SECURE set to true, use secure memory for the returned buffer.
+   Return NULL on error. */
+static char *
+pinentry_local_to_utf8 (char *lc_ctype, char *text, int secure)
+{
+  char *old_ctype;
+  char *source_encoding;
+  iconv_t cd;
+  const char *input = text;
+  size_t input_len = strlen (text) + 1;
+  char *output;
+  size_t output_len;
+  char *output_buf;
+  size_t processed;
+  const char *pgmname = pinentry_get_pgmname ();
+
+  /* If no locale setting could be determined, simply copy the
+     string.  */
+  if (!lc_ctype)
+    {
+      if (! lc_ctype_unknown_warning)
+	{
+	  fprintf (stderr, "%s: no LC_CTYPE known - assuming UTF-8\n",
+		   pgmname);
+	  lc_ctype_unknown_warning = 1;
+	}
+      output_buf = secure? secmem_malloc (input_len) : malloc (input_len);
+      if (output_buf)
+        strcpy (output_buf, input);
+      return output_buf;
+    }
+
+  old_ctype = strdup (setlocale (LC_CTYPE, NULL));
+  if (!old_ctype)
+    return NULL;
+  setlocale (LC_CTYPE, lc_ctype);
+  source_encoding = nl_langinfo (CODESET);
+  setlocale (LC_CTYPE, old_ctype);
+  free (old_ctype);
+
+  /* This is overkill, but simplifies the iconv invocation greatly.  */
+  output_len = input_len * MB_LEN_MAX;
+  output_buf = output = secure? secmem_malloc (output_len):malloc (output_len);
+  if (!output)
+    return NULL;
+
+  cd = iconv_open ("UTF-8", source_encoding);
+  if (cd == (iconv_t) -1)
+    {
+      fprintf (stderr, "%s: can't convert from %s to UTF-8: %s\n",
+               pgmname, source_encoding? source_encoding : "?",
+               strerror (errno));
+      if (secure)
+        secmem_free (output_buf);
+      else
+        free (output_buf);
+      return NULL;
+    }
+  processed = iconv (cd, (ICONV_CONST char **)&input, &input_len,
+                     &output, &output_len);
+  iconv_close (cd);
+  if (processed == (size_t) -1 || input_len)
+    {
+      fprintf (stderr, "%s: error converting from %s to UTF-8: %s\n",
+               pgmname, source_encoding? source_encoding : "?",
+               strerror (errno));
+      if (secure)
+        secmem_free (output_buf);
+      else
+        free (output_buf);
+      return NULL;
+    }
+  return output_buf;
+}
 
 #ifdef HAVE_NCURSESW
 typedef wchar_t CH;
 #define STRLEN(x) wcslen (x)
+#define STRWIDTH(x) wcswidth (x, wcslen (x))
 #define ADDCH(x) addnwstr (&x, 1);
 #define CHWIDTH(x) wcwidth (x)
 #define NULLCH L'\0'
@@ -121,6 +288,7 @@ typedef wchar_t CH;
 #else
 typedef char CH;
 #define STRLEN(x) strlen (x)
+#define STRWIDTH(x) strlen (x)
 #define ADDCH(x) addch ((unsigned char) x)
 #define CHWIDTH(x) 1
 #define NULLCH '\0'
@@ -128,13 +296,14 @@ typedef char CH;
 #define SPCH ' '
 #endif
 
-/* Return the next line up to MAXLEN columns wide in START and LEN.
+/* Return the next line up to MAXWIDTH columns wide in START and LEN.
+   Return value is the width needed for the line.
    The first invocation should have 0 as *LEN.  If the line ends with
    a \n, it is a normal line that will be continued.  If it is a '\0'
    the end of the text is reached after this line.  In all other cases
    there is a forced line break.  A full line is returned and will be
    continued in the next line.  */
-static void
+static int
 collect_line (int maxwidth, CH **start_p, int *len_p)
 {
   int last_space = 0;
@@ -153,11 +322,11 @@ collect_line (int maxwidth, CH **start_p, int *len_p)
 
   while (width < maxwidth - 1 && *end != NULLCH && *end != NLCH)
     {
-      len++;
-      end++;
       if (*end == SPCH)
 	last_space = len;
       width += CHWIDTH (*end);
+      len++;
+      end++;
     }
 
   if (*end != NULLCH && *end != NLCH && last_space != 0)
@@ -169,6 +338,7 @@ collect_line (int maxwidth, CH **start_p, int *len_p)
       (*start_p)[len] = NLCH;
     }
   *len_p = len + 1;
+  return width;
 }
 
 #ifdef HAVE_NCURSESW
@@ -309,6 +479,7 @@ dialog_create (pinentry_t pinentry, dialog_t dialog)
         }								\
       dialog->which = pinentry_utf8_to_local (pinentry->lc_ctype,	\
 					      new ? new : default);	\
+      free (new);							\
       if (!dialog->which)						\
         {								\
 	  err = 1;							\
@@ -340,9 +511,10 @@ dialog_create (pinentry_t pinentry, dialog_t dialog)
 
       do
 	{
-	  collect_line (size_x - 4, &start, &len);
-	  if (len > description_x)
-	    description_x = len;
+	  int width = collect_line (size_x - 4, &start, &len);
+
+	  if (width > description_x)
+	    description_x = width;
 	  y++;
 	}
       while (start[len - 1]);
@@ -412,7 +584,7 @@ dialog_create (pinentry_t pinentry, dialog_t dialog)
       new_x = MIN_PINENTRY_LENGTH;
       if (prompt)
 	{
-	  new_x += STRLEN (prompt) + 1;	/* One space after prompt.  */
+	  new_x += STRWIDTH (prompt) + 1;	/* One space after prompt.  */
 	}
       if (new_x > size_x - 4)
 	new_x = size_x - 4;
@@ -541,11 +713,12 @@ dialog_create (pinentry_t pinentry, dialog_t dialog)
       if (prompt)
 	{
 	  CH *p = prompt;
-	  i = STRLEN (prompt);
+	  i = STRWIDTH (prompt);
 	  if (i > x - 4 - MIN_PINENTRY_LENGTH)
 	    i = x - 4 - MIN_PINENTRY_LENGTH;
 	  dialog->pin_x += i + 1;
 	  dialog->pin_size -= i + 1;
+	  i = STRLEN (prompt);
 	  while (i-- > 0)
 	    {
 	      ADDCH (*(p++));
@@ -595,6 +768,9 @@ dialog_create (pinentry_t pinentry, dialog_t dialog)
       move (dialog->ok_y, dialog->ok_x);
       addstr (dialog->ok);
     }
+
+  dialog->got_input = 0;
+  dialog->no_echo = 0;
 
  out:
   if (description)
@@ -730,6 +906,12 @@ dialog_input (dialog_t diag, int alt, int chr)
 		diag->pin_loc = diag->pin_len;
 	    }
 	}
+      else if (!diag->got_input)
+	{
+	  diag->no_echo = 1;
+	  move (diag->pin_y, diag->pin_x);
+	  addstr ("[no echo]");
+	}
       break;
 
     case 'l' - 'a' + 1: /* control-l */
@@ -801,19 +983,24 @@ dialog_input (dialog_t diag, int alt, int chr)
       break;
     }
 
-  if (old_loc < diag->pin_loc)
+  diag->got_input = 1;
+
+  if (!diag->no_echo)
     {
-      move (diag->pin_y, diag->pin_x + old_loc);
-      while (old_loc++ < diag->pin_loc)
-	addch ('*');
-    }
-  else if (old_loc > diag->pin_loc)
-    {
+      if (old_loc < diag->pin_loc)
+	{
+	  move (diag->pin_y, diag->pin_x + old_loc);
+	  while (old_loc++ < diag->pin_loc)
+	    addch ('*');
+	}
+      else if (old_loc > diag->pin_loc)
+	{
+	  move (diag->pin_y, diag->pin_x + diag->pin_loc);
+	  while (old_loc-- > diag->pin_loc)
+	    addch ('_');
+	}
       move (diag->pin_y, diag->pin_x + diag->pin_loc);
-      while (old_loc-- > diag->pin_loc)
-	addch ('_');
     }
-  move (diag->pin_y, diag->pin_x + diag->pin_loc);
 }
 
 static int
@@ -851,6 +1038,9 @@ dialog_run (pinentry_t pinentry, const char *tty_name, const char *tty_type)
         {
           pinentry->specific_err = gpg_error_from_syserror ();
           pinentry->specific_err_loc = "open_tty_for_read";
+#ifdef HAVE_NCURSESW
+          free (old_ctype);
+#endif
           return confirm_mode? 0 : -1;
         }
       ttyfo = fopen (tty_name, "w");
@@ -861,9 +1051,23 @@ dialog_run (pinentry_t pinentry, const char *tty_name, const char *tty_type)
 	  errno = err;
           pinentry->specific_err = gpg_error_from_syserror ();
           pinentry->specific_err_loc = "open_tty_for_write";
+#ifdef HAVE_NCURSESW
+          free (old_ctype);
+#endif
 	  return confirm_mode? 0 : -1;
 	}
       screen = newterm (tty_type, ttyfo, ttyfi);
+      if (!screen)
+        {
+          pinentry->specific_err = gpg_error (GPG_ERR_WINDOW_TOO_SMALL);
+          pinentry->specific_err_loc = "curses_init";
+          fclose (ttyfo);
+          fclose (ttyfi);
+#ifdef HAVE_NCURSESW
+          free (old_ctype);
+#endif
+          return confirm_mode? 0 : -1;
+        }
       set_term (screen);
     }
   else
@@ -875,6 +1079,9 @@ dialog_run (pinentry_t pinentry, const char *tty_name, const char *tty_type)
               errno = ENOTTY;
               pinentry->specific_err = gpg_error_from_syserror ();
               pinentry->specific_err_loc = "isatty";
+#ifdef HAVE_NCURSESW
+              free (old_ctype);
+#endif
               return confirm_mode? 0 : -1;
             }
 	  init_screen = 1;
@@ -900,8 +1107,17 @@ dialog_run (pinentry_t pinentry, const char *tty_name, const char *tty_type)
   if (has_colors ())
     {
       start_color ();
+
+      /* Ncurses has use_default_colors, an extentions to the curses
+         library, which allows use of -1 to select default color.  */
 #ifdef NCURSES_VERSION
       use_default_colors ();
+#else
+      /* With no extention, we need to specify color explicitly.  */
+      if (pinentry->color_fg == PINENTRY_COLOR_DEFAULT)
+        pinentry->color_fg = PINENTRY_COLOR_WHITE;
+      if (pinentry->color_bg == PINENTRY_COLOR_DEFAULT)
+        pinentry->color_bg = PINENTRY_COLOR_BLACK;
 #endif
 
       if (pinentry->color_so == PINENTRY_COLOR_DEFAULT)
@@ -1188,7 +1404,7 @@ curses_cmd_handler (pinentry_t pinentry)
     }
 #endif
 
-  rc = dialog_run (pinentry, pinentry->ttyname, pinentry->ttytype);
+  rc = dialog_run (pinentry, pinentry->ttyname, pinentry->ttytype_l);
   do_touch_file (pinentry);
   return rc;
 }

@@ -214,7 +214,6 @@ create_prompt (pinentry_t pe, int confirm)
      ui/frob-system-prompt.c for example conversion using %lu */
   snprintf (window_id, sizeof (window_id), "%lu",
             (long unsigned int)pe->parent_wid);
-  window_id[sizeof (window_id) - 1] = '\0';
   gcr_prompt_set_caller_window (prompt, window_id);
 
 #ifdef HAVE_LIBSECRET
@@ -446,15 +445,15 @@ pe_gnome_screen_locked (void)
                                        NULL,
                                        ((const GVariantType *) "(b)"),
                                        G_DBUS_CALL_FLAGS_NO_AUTO_START,
-                                       0,
+                                       -1,
                                        NULL,
                                        &error);
   g_object_unref(dbus);
   if (!reply)
     {
-      /* G_IO_ERROR_TIMED_OUT is the expected response when there is
+      /* G_IO_ERROR_IS_DIRECTORY is the expected response when there is
        * no gnome screensaver at all, don't be noisy in that case: */
-      if (!(error && error->code == G_IO_ERROR_TIMED_OUT))
+      if (!(error && error->code == G_IO_ERROR_IS_DIRECTORY))
         fprintf (stderr, "Failed to get d-bus reply for org.gnome.ScreenSaver.GetActive (%d): %s\n",
                  error ? error->code : -1,
                  error ? error->message : "<no GError>");

@@ -38,10 +38,12 @@ AM_CPPFLAGS = $(COMMON_CFLAGS) \
 AM_CXXFLAGS = $(PINENTRY_TQT_CFLAGS)
 pinentry_tqt_LDADD = \
 	../pinentry/libpinentry.a $(top_builddir)/secmem/libsecmem.a \
-	$(COMMON_LIBS) $(PINENTRY_TQT_LIBS) $(libcurses) $(LIBCAP)
+	$(COMMON_LIBS) $(PINENTRY_TQT_LIBS) $(libcurses)
 
+if BUILD_PINENTRY_TQT
 BUILT_SOURCES = \
 	secqlineedit.moc pinentrydialog.moc
+endif
 
 CLEANFILES = \
 	secqlineedit.moc pinentrydialog.moc

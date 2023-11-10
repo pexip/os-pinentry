@@ -24,7 +24,7 @@ DISTCHECK_CONFIGURE_FLAGS = --disable-pinentry-qt --enable-pinentry-emacs
 
 GITLOG_TO_CHANGELOG=gitlog-to-changelog
 
-EXTRA_DIST = autogen.sh autogen.rc README.GIT ChangeLog-old \
+EXTRA_DIST = autogen.sh autogen.rc README.GIT ChangeLog-old VERSION \
 	     build-aux/gitlog-to-changelog \
 	     build-aux/git-log-fix build-aux/git-log-footer
 
@@ -64,6 +64,12 @@ else
 pinentry_qt =
 endif
 
+if BUILD_PINENTRY_QT4
+pinentry_qt4 = qt4
+else
+pinentry_qt4 =
+endif
+
 if BUILD_PINENTRY_TQT
 pinentry_tqt = tqt
 else
@@ -82,10 +88,22 @@ else
 pinentry_fltk =
 endif
 
+if BUILD_PINENTRY_EFL
+pinentry_efl = efl
+else
+pinentry_efl =
+endif
+
+if BUILD_DOC
+doc = doc
+else
+doc =
+endif
+
 SUBDIRS = m4 secmem pinentry ${pinentry_curses} ${pinentry_tty} \
 	${pinentry_emacs} ${pinentry_gtk_2} ${pinentry_gnome_3} \
-	${pinentry_qt} ${pinentry_tqt} ${pinentry_w32} \
-	${pinentry_fltk} doc
+	${pinentry_qt} ${pinentry_qt4}  ${pinentry_tqt} ${pinentry_w32} \
+	${pinentry_fltk} ${pinentry_efl} ${doc}
 
 
 install-exec-local:
@@ -95,11 +113,10 @@ install-exec-local:
 	done
 
 	(cd $(DESTDIR)$(bindir); \
-	rm -f pinentry; \
-	$(LN_S) $(PINENTRY_DEFAULT)$(EXEEXT) pinentry)
+	rm -f pinentry$(EXEEXT); \
+	$(LN_S) $(PINENTRY_DEFAULT)$(EXEEXT) pinentry$(EXEEXT))
 
 dist-hook: gen-ChangeLog
-	echo "$(VERSION)" > $(distdir)/VERSION
 
 distcheck-hook:
 	set -e; ( \
