@@ -1,35 +1,56 @@
 #!/usr/bin/make -f
 
-QT_SELECT = qt5
-export QT_SELECT
-SHARED_CONFIGS = --disable-rpath --without-libcap --disable-pinentry-emacs --disable-inside-emacs --enable-fallback-curses --disable-pinentry-tqt --disable-pinentry-efl
+SHARED_CONFIGS = --disable-rpath --without-libcap --disable-pinentry-emacs --disable-inside-emacs --disable-pinentry-tqt --disable-pinentry-efl
 export DEB_BUILD_MAINT_OPTIONS = hardening=+bindnow
 
+ifeq (,$(filter pkg.pinentry.onlytty,$(DEB_BUILD_PROFILES)))
+EN_DISABLE_FRONTENDS=--enable-pinentry-curses \
+		     --enable-pinentry-qt \
+		     --enable-pinentry-fltk \
+		     --enable-fallback-curses
+else
+EN_DISABLE_FRONTENDS=--disable-pinentry-curses \
+		     --disable-pinentry-qt \
+		     --disable-pinentry-fltk \
+		     --disable-fallback-curses
+endif
+
 %:
-	dh $@
+	dh $@ --builddirectory=build-no-libsecret
 
 override_dh_auto_configure:
 	dh_auto_configure --builddirectory=build-no-libsecret -- \
 		$(SHARED_CONFIGS) --disable-libsecret \
 		--enable-pinentry-tty \
-		--enable-pinentry-curses \
-		--enable-pinentry-qt \
+		$(EN_DISABLE_FRONTENDS) \
 		--disable-pinentry-qt4 \
-		--enable-pinentry-fltk \
+		--disable-pinentry-qt5 \
 		--disable-pinentry-gtk2 \
 		--disable-pinentry-gnome3
-	dh_auto_configure -- $(SHARED_CONFIGS) \
+ifeq (,$(filter pkg.pinentry.onlytty,$(DEB_BUILD_PROFILES)))
+	dh_auto_configure --builddirectory=build-libsecret -- \
+		$(SHARED_CONFIGS) \
 		--disable-pinentry-tty \
 		--disable-pinentry-curses \
 		--disable-pinentry-qt \
 		--disable-pinentry-qt4 \
+		--disable-pinentry-qt5 \
 		--disable-pinentry-fltk \
+		--enable-fallback-curses \
 		--enable-pinentry-gtk2 \
 		--enable-pinentry-gnome3
+endif
+
+override_dh_auto_install:
+	dh_auto_install --builddirectory=build-no-libsecret
+	rm -f debian/tmp/usr/bin/pinentry
+	dh_auto_install --builddirectory=build-libsecret
 
 override_dh_auto_build:
 	dh_auto_build --builddirectory=build-no-libsecret
-	dh_auto_build
+ifeq (,$(filter pkg.pinentry.onlytty,$(DEB_BUILD_PROFILES)))
+	dh_auto_build --builddirectory=build-libsecret
+endif
 
 override_dh_installdocs:
-	dh_installdocs -A NEWS AUTHORS
+	dh_installdocs -O--builddirectory=build-no-libsecret -A NEWS AUTHORS

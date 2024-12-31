@@ -1,2 +1,3 @@
 0001-avoid-self-describing-as-a-beta.patch
 0002-gtk2-When-X11-input-grabbing-fails-try-again-over-0..patch
+0005-delete-libassuan.m4.diff

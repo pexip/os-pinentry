@@ -1,2 +1,3 @@
+build-libsecret/
 build-no-libsecret/
 doc/pinentry.info

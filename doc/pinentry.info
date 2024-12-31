@@ -1,4 +1,4 @@
-This is pinentry.info, produced by makeinfo version 6.5 from
+This is pinentry.info, produced by makeinfo version 6.8 from
 pinentry.texi.
 
 INFO-DIR-SECTION GNU Utilities
@@ -8,8 +8,8 @@ END-INFO-DIR-ENTRY
 
 This file documents the use and the internals of the PINENTRY.
 
-   This is edition 1.2.1, last updated 25 August 2021, of 'The
-'PINEntry' Manual', for version 1.2.1.
+   This is edition 1.3.1, last updated 26 February 2024, of 'The
+'PINEntry' Manual', for version 1.3.1.
 
    Published by g10 Code GmbH
 Hüttenstr.  61
@@ -94,7 +94,8 @@ commands according to the Assuan protocol via stdin/stdout.
      Grab the keyboard only when the window is focused.  Use this option
      if you are debugging software using the PINENTRY; otherwise you may
      not be able to to access your X session anymore (unless you have
-     other means to connect to the machine to kill the PINENTRY).
+     other means to connect to the machine to kill the PINENTRY).  Note
+     that this feature only supported in flavors of Gtk+2 and Qt 4/5/6.
 
 '--parent-wid N'
      Use window ID N as the parent window for positioning the window.
@@ -124,15 +125,16 @@ File: pinentry.info,  Node: Front ends,  Next: Protocol,  Prev: Using pinentry, 
 ************
 
 There are several different flavors of PINENTRY.  Concretely, there are
-Gtk+2, Qt 4/5, TQt, EFL, FLTK, Gnome 3, Emacs, curses and tty variants.
-These different implementations provide higher levels of integration
-with a specific environment.  For instance, the Gnome 3 PINENTRY uses
-Gnome 3 widgets to display the prompts.  For Gnome 3 users, this higher
-level of integration provides a more consistent aesthetic.  However,
-this comes at a cost.  Because this PINENTRY uses so many components,
-there is a larger chance of a failure.  In particular, there is a larger
-chance that the passphrase is saved in memory and that memory is exposed
-to an attacker (consider the OpenSSL Heartbeat vulnerability).
+Gtk+2, Qt 4/5/6, TQt, EFL, FLTK, Gnome 3, Emacs, curses and tty
+variants.  These different implementations provide higher levels of
+integration with a specific environment.  For instance, the Gnome 3
+PINENTRY uses Gnome 3 widgets to display the prompts.  For Gnome 3
+users, this higher level of integration provides a more consistent
+aesthetic.  However, this comes at a cost.  Because this PINENTRY uses
+so many components, there is a larger chance of a failure.  In
+particular, there is a larger chance that the passphrase is saved in
+memory and that memory is exposed to an attacker (consider the OpenSSL
+Heartbeat vulnerability).
 
    To understand how many components touch the passphrase, consider
 again the Gnome 3 implementation.  When a user presses a button on the
@@ -314,7 +316,7 @@ encoded as '%25', etc.).
 'Enable an action for generating a passphrase'
      Adds an action for generating a random passphrase to the GETPIN
      window.  The action is only available when asking for a new
-     passphrase, i.e.  if SETREPEAT has been called.
+     passphrase, i.e., if SETREPEAT has been called.
             C: SETGENPIN Suggest
             S: OK
 
@@ -635,9 +637,8 @@ relevant elements that describe the layout:
      consents, then the PINENTRY may cache the password with an external
      manager.  Note: getting the user's consent is essential, because
      password managers often provide a different level of security.  If
-     the above condition is true and 'tried_password_cache' is false,
-     then a check box with the specified string should be displayed.
-     The check box must default to off.
+     the above condition is true, then a check box with the specified
+     string should be displayed.  The check box must default to off.
 
 'default-cf-visi'
      The string to show with a question if you want to confirm that the
@@ -1050,16 +1051,16 @@ Option Index
 
 * d:                                     Using pinentry.       (line 20)
 * debug:                                 Using pinentry.       (line 20)
-* display:                               Using pinentry.       (line 46)
+* display:                               Using pinentry.       (line 47)
 * g:                                     Using pinentry.       (line 26)
 * help:                                  Using pinentry.       (line 15)
-* lc-ctype:                              Using pinentry.       (line 46)
-* lc-messa:                              Using pinentry.       (line 46)
+* lc-ctype:                              Using pinentry.       (line 47)
+* lc-messa:                              Using pinentry.       (line 47)
 * no-global-grab:                        Using pinentry.       (line 26)
-* parent-wid:                            Using pinentry.       (line 32)
-* timeout:                               Using pinentry.       (line 36)
-* ttyname:                               Using pinentry.       (line 46)
-* ttytype:                               Using pinentry.       (line 46)
+* parent-wid:                            Using pinentry.       (line 33)
+* timeout:                               Using pinentry.       (line 37)
+* ttyname:                               Using pinentry.       (line 47)
+* ttytype:                               Using pinentry.       (line 47)
 * version:                               Using pinentry.       (line 12)
 
 
@@ -1077,13 +1078,18 @@ Index
 
 
 Tag Table:
-Node: Top815
-Node: Using pinentry2240
-Node: Front ends4091
-Node: Protocol7660
-Node: Implementation Details18285
-Node: Copying27843
-Node: Option Index47022
-Node: Index48104
+Node: Top817
+Node: Using pinentry2242
+Node: Front ends4171
+Node: Protocol7743
+Node: Implementation Details18368
+Node: Copying27886
+Node: Option Index47065
+Node: Index48147
 
 End Tag Table
+
+
+Local Variables:
+coding: utf-8
+End:

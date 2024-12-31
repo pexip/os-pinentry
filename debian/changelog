@@ -1,3 +1,65 @@
+pinentry (1.3.1-2) unstable; urgency=low
+
+  * Add b-d on libkf6guiaddons-dev for qt capslock warning. Stop marking
+    libkf6windowsystem-dev [linux-any] since it is available on linux-archs,
+    too. (Thanks, Pino Toscano!)
+  * Cleanup debian/rules: Explicitly disable QT5 build, drop unused QT_SELECT.
+    QT_SELECT is irrelevant for Qt >= 6.
+  * Upload to unstable
+
+ -- Andreas Metzler <ametzler@debian.org>  Tue, 31 Dec 2024 16:39:53 +0100
+
+pinentry (1.3.1-1) experimental; urgency=low
+
+  * "New" upstream version.
+  * Unfuzz patches.
+  * pinentry-qt is now QT6 based, update b-d.
+  * Run wrap-and-sort -ast.
+  * Ship desktop file and icon in pinentry-qt.
+  * Update copyright info for 1.3.1.
+  * Add b-d on libkf6windowsystem-dev for wayland window parenting.
+    Marked [linux-any] since wayland is. MR !3
+
+ -- Andreas Metzler <ametzler@debian.org>  Wed, 25 Dec 2024 07:53:15 +0100
+
+pinentry (1.2.1-5) unstable; urgency=medium
+
+  [ Debian Janitor ]
+  * Remove constraints unnecessary since buster (oldstable)
+    * Build-Depends: Drop versioned constraint on libassuan-dev,
+      libglib2.0-dev, libgpg-error-dev and libgtk2.0-dev.
+    Changes-By: deb-scrub-obsolete
+
+  [ Andreas Metzler ]
+  * [lintian] B-D on pkgconf instead of pkg-config.
+  * Bump Standards-Version
+
+ -- Andreas Metzler <ametzler@debian.org>  Tue, 24 Dec 2024 15:56:18 +0100
+
+pinentry (1.2.1-4) unstable; urgency=medium
+
+  * Add myself to uploaders.
+  * Delete outdated m4/libassuan.m4 to allow building against libassuan 3.
+
+ -- Andreas Metzler <ametzler@debian.org>  Mon, 26 Aug 2024 18:24:37 +0200
+
+pinentry (1.2.1-3) unstable; urgency=medium
+
+  * Team upload.
+  * Upload to unstable.
+
+ -- Andreas Metzler <ametzler@debian.org>  Sun, 05 Nov 2023 13:02:05 +0100
+
+pinentry (1.2.1-2) experimental; urgency=medium
+
+  * Team upload.
+  * Add pkg.pinentry.onlytty Build-Profile to ease bootstrapping.
+    Closes: #1055238
+  * [lintian] Build-Depend on libncurses-dev instead of transition packages
+    libncurses(w)5-dev.
+
+ -- Andreas Metzler <ametzler@debian.org>  Sat, 04 Nov 2023 18:10:26 +0100
+
 pinentry (1.2.1-1) unstable; urgency=medium
 
   * new upstream release

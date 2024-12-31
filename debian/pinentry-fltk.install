@@ -1,1 +1,1 @@
-build-no-libsecret/fltk/pinentry-fltk usr/bin
+usr/bin/pinentry-fltk
