@@ -39,15 +39,17 @@ endif
 AM_CPPFLAGS = $(COMMON_CFLAGS) \
 	-I$(top_srcdir) -I$(top_srcdir)/secmem \
 	$(ncurses_include) -I$(top_srcdir)/pinentry
-AM_CXXFLAGS = $(PINENTRY_QT_CFLAGS)
+AM_CXXFLAGS = $(PINENTRY_QT6_CFLAGS)
 pinentry_qt_LDADD = \
 	../pinentry/libpinentry.a $(top_builddir)/secmem/libsecmem.a \
-	$(COMMON_LIBS) $(PINENTRY_QT_LIBS) $(libcurses)
-pinentry_qt_LDFLAGS = $(PINENTRY_QT_LDFLAGS)
+	$(COMMON_LIBS) $(PINENTRY_QT6_LIBS) $(libcurses)
+pinentry_qt_LDFLAGS = $(PINENTRY_QT6_LDFLAGS)
 
-if BUILD_PINENTRY_QT
+if BUILD_PINENTRY_QT6
 BUILT_SOURCES = \
 	pinentryconfirm.moc pinentrydialog.moc pinlineedit.moc capslock.moc \
+	focusframe.moc \
+	keyboardfocusindication.moc \
 	pinentryrc.cpp
 endif
 
@@ -64,12 +66,17 @@ pinentry_qt_SOURCES = pinentrydialog.h pinentrydialog.cpp \
 	pinlineedit.h pinlineedit.cpp capslock.cpp capslock.h capslock_p.h \
 	pinentry_debug.cpp pinentry_debug.h util.h accessibility.cpp \
 	accessibility.h qti18n.cpp pinentryrc.qrc \
+	focusframe.h focusframe.cpp \
+	keyboardfocusindication.h keyboardfocusindication.cpp \
 	$(pinentry_qt_platform_SOURCES)
 
 nodist_pinentry_qt_SOURCES = $(BUILT_SOURCES)
 
 .h.moc:
-	$(MOC) `test -f '$<' || echo '$(srcdir)/'`$< -o $@
+	$(MOC6) `test -f '$<' || echo '$(srcdir)/'`$< -o $@
 
 pinentryrc.cpp: pinentryrc.qrc
-	$(RCC) `test -f '$<' || echo '$(srcdir)/'`$< -o $@
+	$(RCC6) `test -f '$<' || echo '$(srcdir)/'`$< -o $@
+
+desktopdir = $(datadir)/applications
+desktop_DATA = org.gnupg.pinentry-qt.desktop

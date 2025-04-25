@@ -23,14 +23,16 @@
 # include "config.h"
 #endif
 
+#ifdef GCR_API_4
+#include <gcr/gcr.h>
+#else
 #include <gcr/gcr-base.h>
+#endif
 
 #include <string.h>
 #include <stdlib.h>
 
 #include <assuan.h>
-
-#include "memory.h"
 
 #include "pinentry.h"
 

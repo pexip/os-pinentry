@@ -28,7 +28,7 @@ min_automake_version="1.14"
 # commit and push so that the git magic is able to work.
 m4_define([mym4_package],[pinentry])
 m4_define([mym4_major], [1])
-m4_define([mym4_minor], [2])
+m4_define([mym4_minor], [3])
 m4_define([mym4_micro], [1])
 
 # Below is m4 magic to extract and compute the git revision number,
@@ -134,12 +134,8 @@ AM_CONDITIONAL(HAVE_DOSISH_SYSTEM, test "$have_dosish_system" = yes)
 
 if test "$have_w32_system" = yes; then
    AC_DEFINE(HAVE_W32_SYSTEM,1, [Defined if we run on a W32 API based system])
-   if test "$have_w32ce_system" = yes; then
-      AC_DEFINE(HAVE_W32CE_SYSTEM,1,[Defined if we run on WindowsCE])
-   fi
 fi
 AM_CONDITIONAL(HAVE_W32_SYSTEM, test "$have_w32_system" = yes)
-AM_CONDITIONAL(HAVE_W32CE_SYSTEM, test "$have_w32ce_system" = yes)
 
 
 
@@ -184,6 +180,7 @@ if test "$GCC" = yes; then
           CFLAGS="$CFLAGS -Wdeclaration-after-statement"
         fi
 
+        CPPFLAGS="$CPPFLAGS -Wundef"
     else
         # Not in maintainer mode: Use standard warnings.
         CFLAGS="$CFLAGS -Wall"
@@ -356,6 +353,7 @@ dnl Check for emacs pinentry program.
 dnl
 AC_ARG_ENABLE(pinentry-emacs,
             AS_HELP_STRING([--enable-pinentry-emacs],[build emacs pinentry]),
+            AC_MSG_WARN([pinentry-emacs is obsolete; Emacs version 26 or later never uses it.])
             pinentry_emacs=$enableval, pinentry_emacs=no)
 AC_ARG_ENABLE(inside-emacs,
             AS_HELP_STRING([--enable-inside-emacs],[include emacs hack]),
@@ -461,15 +459,24 @@ AM_CONDITIONAL(BUILD_PINENTRY_GTK_2, test "$pinentry_gtk_2" = "yes")
 if test "$pinentry_gnome_3" != "no"; then
 	PKG_CHECK_MODULES(
 		GNOME3,
-		[gcr-3,gcr-base-3],
+		[gcr-4],
 		[
 			pinentry_gnome_3=yes
 			AC_DEFINE(GCR_API_SUBJECT_TO_CHANGE, 1, [Nod nod])
+			AC_DEFINE(GCR_API_4, 1, [GCR API version])
 		],
-		[
-			AC_MSG_WARN([pkg-config could not find the module gcr-3,gcr-base-3])
-			pinentry_gnome_3=no
-		]
+		[PKG_CHECK_MODULES(
+			GNOME3,
+			[gcr-base-3],
+			[
+				pinentry_gnome_3=yes
+				AC_DEFINE(GCR_API_SUBJECT_TO_CHANGE, 1, [Nod nod])
+			],
+			[
+				AC_MSG_WARN([pkg-config could not find the module gcr-4 or gcr-base-3])
+				pinentry_gnome_3=no
+			]
+		)]
 	)
 fi
 
@@ -542,55 +549,145 @@ if test "$have_w32_system" != "yes"; then
 fi
 
 dnl
+dnl Check for KF6GuiAddons library
+dnl
+have_kf6guiaddons=no
+if test "$have_w32_system" != "yes"; then
+	PKG_CHECK_MODULES(
+		KF6GUIADDONS,
+		[KF6GuiAddons >= 5.240],
+		[have_kf6guiaddons=yes],
+		[
+			AC_MSG_WARN([pkg-config could not find the module KF6GuiAddons])
+			have_kf6guiaddons=no
+		]
+	)
+fi
+
+dnl
 dnl Check for Qt5 pinentry program.
 dnl
-AC_ARG_ENABLE(pinentry-qt,
-            AS_HELP_STRING([--enable-pinentry-qt],[build Qt5 pinentry]),
-            pinentry_qt=$enableval, pinentry_qt=maybe)
+AC_ARG_ENABLE(pinentry-qt5,
+            AS_HELP_STRING([--enable-pinentry-qt5],[build Qt5 pinentry]),
+            pinentry_qt5=$enableval, pinentry_qt5=maybe)
 
 
 dnl
-dnl Checks for qt libraries.  Deal correctly with $pinentry_qt = maybe.
+dnl Checks for qt libraries.  Deal correctly with $pinentry_qt5 = maybe.
 dnl Tries to find Qt5
 dnl
-if test "$pinentry_qt" != "no"; then
-  FIND_QT
+if test "$pinentry_qt5" != "no"; then
+  FIND_QT5
   if test "$have_qt5_libs" != "yes"; then
-    if test "$pinentry_qt" = "yes"; then
+    if test "$pinentry_qt5" = "yes"; then
         AC_MSG_ERROR([[
     ***
     *** Qt5 (Qt5Core, Qt5Gui, Qt5Widgets) is required.
     ***]])
     else
-        pinentry_qt=no
+        pinentry_qt5=no
     fi
   fi
 fi
 
-AC_SUBST(PINENTRY_QT_CFLAGS)
-AC_SUBST(PINENTRY_QT_LIBS)
-AC_SUBST(PINENTRY_QT_LDFLAGS)
-AC_SUBST(MOC)
+AC_SUBST(PINENTRY_QT5_CFLAGS)
+AC_SUBST(PINENTRY_QT5_LIBS)
+AC_SUBST(PINENTRY_QT5_LDFLAGS)
+AC_SUBST(MOC5)
 
-dnl If we have come so far, qt pinentry can be build.
-if test "$pinentry_qt" != "no"; then
-    pinentry_qt=yes
+dnl If we have come so far, qt5 pinentry can be build.
+if test "$pinentry_qt5" != "no"; then
+    pinentry_qt5=yes
 fi
-AM_CONDITIONAL(BUILD_PINENTRY_QT, test "$pinentry_qt" = "yes")
-if test "$pinentry_qt" = "yes"; then
-  AC_DEFINE(PINENTRY_QT, 1, [The qt version of Pinentry is to be build])
-fi
+AM_CONDITIONAL(BUILD_PINENTRY_QT5, test "$pinentry_qt5" = "yes")
 if test "$have_qt5_x11extras" = "yes"; then
-  AC_DEFINE(PINENTRY_QT_X11, 1, [pinentry-qt should use x11.])
+  AC_DEFINE(PINENTRY_QT5_X11, 1, [pinentry-qt5 should use x11.])
+else
+  AC_DEFINE(PINENTRY_QT5_X11, 0, [pinentry-qt5 shouldn't use x11.])
 fi
 if test "$have_kf5waylandclient" = "yes"; then
-  PINENTRY_QT_CFLAGS="$KF5WAYLANDCLIENT_CFLAGS $PINENTRY_QT_CFLAGS -fpic"
-  PINENTRY_QT_LIBS="$KF5WAYLANDCLIENT_LIBS $PINENTRY_QT_LIBS"
-  AC_DEFINE(PINENTRY_QT_WAYLAND, 1, [pinentry-qt should use KF5WaylandClient.])
+  PINENTRY_QT5_CFLAGS="$KF5WAYLANDCLIENT_CFLAGS $PINENTRY_QT5_CFLAGS -fpic"
+  PINENTRY_QT5_LIBS="$KF5WAYLANDCLIENT_LIBS $PINENTRY_QT5_LIBS"
+  AC_DEFINE(PINENTRY_QT5_WAYLAND, 1, [pinentry-qt5 should use KF5WaylandClient.])
 else
   if test "$have_w32_system" != "yes"; then
-    AC_MSG_WARN([pinentry-qt will be built without Caps Lock warning on Wayland])
+    AC_MSG_WARN([pinentry-qt5 will be built without Caps Lock warning on Wayland])
   fi
+  AC_DEFINE(PINENTRY_QT5_WAYLAND, 0, [pinentry-qt5 shouldn't use KF5WaylandClient.])
+fi
+
+dnl
+dnl Check for Qt6 pinentry program.
+dnl
+AC_ARG_ENABLE(pinentry-qt,
+            AS_HELP_STRING([--enable-pinentry-qt],[build Qt6 pinentry]),
+            pinentry_qt6=$enableval, pinentry_qt6=maybe)
+
+
+dnl
+dnl Checks for qt libraries.  Deal correctly with $pinentry_qt6 = maybe.
+dnl Tries to find Qt6
+dnl
+if test "$pinentry_qt6" != "no"; then
+  FIND_QT6
+  if test "$have_qt6_libs" != "yes"; then
+    if test "$pinentry_qt6" = "yes"; then
+        AC_MSG_ERROR([[
+    ***
+    *** Qt6 (Qt6Core, Qt6Gui, Qt6Widgets) is required.
+    ***]])
+    else
+        pinentry_qt6=no
+    fi
+  fi
+fi
+
+AC_SUBST(PINENTRY_QT6_CFLAGS)
+AC_SUBST(PINENTRY_QT6_LIBS)
+AC_SUBST(PINENTRY_QT6_LDFLAGS)
+AC_SUBST(MOC6)
+
+dnl If we have come so far, qt pinentry can be build.
+if test "$pinentry_qt6" != "no"; then
+    pinentry_qt6=yes
+fi
+AM_CONDITIONAL(BUILD_PINENTRY_QT6, test "$pinentry_qt6" = "yes")
+if test "$have_kf6guiaddons" = "yes"; then
+  PINENTRY_QT6_CFLAGS="$KF6GUIADDONS_CFLAGS $PINENTRY_QT6_CFLAGS"
+  PINENTRY_QT6_LIBS="$KF6GUIADDONS_LIBS $PINENTRY_QT6_LIBS"
+  AC_DEFINE(PINENTRY_KGUIADDONS, 1, [pinentry-qt should use KF6GuiAddons.])
+else
+  if test "$have_w32_system" != "yes"; then
+    AC_MSG_WARN([pinentry-qt will be built without Caps Lock warning on Unix])
+  fi
+  AC_DEFINE(PINENTRY_KGUIADDONS, 0, [pinentry-qt shouldn't use KF6GuiAddons.])
+fi
+
+dnl
+dnl Check for KF6WindowSystem library
+dnl
+have_kf6windowsystem=no
+if test "$have_w32_system" != "yes" && test "$pinentry_qt6" = "yes"; then
+	PKG_CHECK_MODULES(
+		KF6WINDOWSYSTEM,
+		[KF6WindowSystem >= 5.240],
+		[have_kf6windowsystem=yes],
+		[
+			AC_MSG_WARN([pkg-config could not find the module KF6WindowSystem])
+			have_kf6windowsystem=no
+		]
+	)
+fi
+
+if test "$have_kf6windowsystem" = "yes"; then
+  PINENTRY_QT6_CFLAGS="$KF6WINDOWSYSTEM_CFLAGS $PINENTRY_QT6_CFLAGS"
+  PINENTRY_QT6_LIBS="$KF6WINDOWSYSTEM_LIBS $PINENTRY_QT6_LIBS"
+  AC_DEFINE(PINENTRY_KWINDOWSYSTEM, 1, [pinentry-qt should use KF6WindowSystem.])
+else
+  if test "$have_w32_system" != "yes"; then
+    AC_MSG_WARN([pinentry-qt will be built without window parenting on wayland])
+  fi
+  AC_DEFINE(PINENTRY_KWINDOWSYSTEM, 0, [pinentry-qt shouldn't use KF6WindowSystem.])
 fi
 
 dnl
@@ -629,9 +726,6 @@ if test "$pinentry_qt4" != "no"; then
     pinentry_qt4=yes
 fi
 AM_CONDITIONAL(BUILD_PINENTRY_QT4, test "$pinentry_qt4" = "yes")
-if test "$pinentry_qt4" = "yes"; then
-  AC_DEFINE(PINENTRY_QT4, 1, [The qt4 version of Pinentry is to be build])
-fi
 
 dnl
 dnl Check for TQt pinentry program.
@@ -642,7 +736,7 @@ AC_ARG_ENABLE(pinentry-tqt,
 
 if test "$pinentry_tqt" != "no"; then
 
-  if test "$pinentry_qt" = "yes"; then
+  if test "$pinentry_qt5" = "yes" -o "$pinentry_qt4" = "yes"; then
     AC_MSG_ERROR([[
     ***
     *** Building both Qt and TQt pinentries is not supported.
@@ -722,34 +816,38 @@ AM_CONDITIONAL(BUILD_PINENTRY_FLTK, test "$pinentry_fltk" = "yes")
 if test "$pinentry_gtk_2" = "yes"; then
   PINENTRY_DEFAULT=pinentry-gtk-2
 else
-  if test "$pinentry_qt" = "yes"; then
+  if test "$pinentry_qt6" = "yes"; then
     PINENTRY_DEFAULT=pinentry-qt
   else
-    if test "$pinentry_gnome_3" = "yes"; then
-      PINENTRY_DEFAULT=pinentry-gnome3
+    if test "$pinentry_qt5" = "yes"; then
+      PINENTRY_DEFAULT=pinentry-qt5
     else
-      if test "$pinentry_curses" = "yes"; then
-        PINENTRY_DEFAULT=pinentry-curses
+      if test "$pinentry_gnome_3" = "yes"; then
+        PINENTRY_DEFAULT=pinentry-gnome3
       else
-        if test "$pinentry_tty" = "yes"; then
-          PINENTRY_DEFAULT=pinentry-tty
+        if test "$pinentry_curses" = "yes"; then
+          PINENTRY_DEFAULT=pinentry-curses
         else
-          if test "$pinentry_w32" = "yes"; then
-            PINENTRY_DEFAULT=pinentry-w32
+          if test "$pinentry_tty" = "yes"; then
+            PINENTRY_DEFAULT=pinentry-tty
           else
-            if test "$pinentry_fltk" = "yes"; then
-              PINENTRY_DEFAULT=pinentry-fltk
+            if test "$pinentry_w32" = "yes"; then
+              PINENTRY_DEFAULT=pinentry-w32
             else
-              if test "$pinentry_tqt" = "yes"; then
-                PINENTRY_DEFAULT=pinentry-tqt
+              if test "$pinentry_fltk" = "yes"; then
+                PINENTRY_DEFAULT=pinentry-fltk
               else
-                if test "$pinentry_efl" = "yes"; then
-                  PINENTRY_DEFAULT=pinentry-efl
+                if test "$pinentry_tqt" = "yes"; then
+                  PINENTRY_DEFAULT=pinentry-tqt
                 else
-                  if test "$pinentry_qt4" = "yes"; then
-                    PINENTRY_DEFAULT=pinentry-qt4
+                  if test "$pinentry_efl" = "yes"; then
+                    PINENTRY_DEFAULT=pinentry-efl
                   else
-                    AC_MSG_ERROR([[No pinentry enabled.]])
+                    if test "$pinentry_qt4" = "yes"; then
+                      PINENTRY_DEFAULT=pinentry-qt4
+                    else
+                      AC_MSG_ERROR([[No pinentry enabled.]])
+                    fi
                   fi
                 fi
               fi
@@ -839,12 +937,16 @@ gtk+-2/Makefile
 gnome3/Makefile
 qt/Makefile
 qt/icons/Makefile
+qt5/Makefile
+qt5/icons/Makefile
 qt4/Makefile
 tqt/Makefile
 w32/Makefile
 fltk/Makefile
 doc/Makefile
 Makefile
+qt/org.gnupg.pinentry-qt.desktop
+qt5/org.gnupg.pinentry-qt5.desktop
 ])
 
 AC_OUTPUT
@@ -862,7 +964,8 @@ AC_MSG_NOTICE([
 	EFL Pinentry .....: $pinentry_efl
 	GTK+-2 Pinentry ..: $pinentry_gtk_2
 	GNOME 3 Pinentry .: $pinentry_gnome_3
-	Qt5 Pinentry .....: $pinentry_qt
+	Qt6 Pinentry .....: $pinentry_qt6
+	Qt5 Pinentry .....: $pinentry_qt5
 	Qt4 Pinentry .....: $pinentry_qt4
 	TQt Pinentry .....: $pinentry_tqt
 	W32 Pinentry .....: $pinentry_w32
