@@ -41,7 +41,6 @@
 #include <gpg-error.h>
 
 #include "pinentry.h"
-#include "memory.h"
 
 #ifndef HAVE_DOSISH_SYSTEM
 static int timed_out;
@@ -131,7 +130,7 @@ button (char *text, char *default_text, FILE *ttyfo)
           highlight++;
           continue;
         }
-      if (!isalnum (*highlight))
+      if (!isalnum (*(unsigned char*)highlight))
         /* Unusable accelerator.  */
         continue;
       break;
@@ -141,7 +140,7 @@ button (char *text, char *default_text, FILE *ttyfo)
     /* Not accelerator.  Take the first alpha-numeric character.  */
     {
       highlight = text;
-      while (*highlight && !isalnum (*highlight))
+      while (*highlight && !isalnum (*(unsigned char*)highlight))
 	highlight ++;
     }
 
@@ -528,16 +527,17 @@ tty_cmd_handler (pinentry_t pinentry)
   int saved_errno = 0;
 
 #ifndef HAVE_DOSISH_SYSTEM
+  struct sigaction sa;
+
+  memset (&sa, 0, sizeof(sa));
+  sa.sa_handler = catchsig;
+  sigaction (SIGINT, &sa, NULL);
+
   timed_out = 0;
 
   if (pinentry->timeout)
     {
-      struct sigaction sa;
-
-      memset (&sa, 0, sizeof(sa));
-      sa.sa_handler = catchsig;
       sigaction (SIGALRM, &sa, NULL);
-      sigaction (SIGINT, &sa, NULL);
       alarm (pinentry->timeout);
     }
 #endif

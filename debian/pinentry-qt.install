@@ -1,1 +1,3 @@
-build-no-libsecret/qt/pinentry-qt usr/bin
+usr/bin/pinentry-qt
+usr/share/applications/org.gnupg.pinentry-qt.desktop
+usr/share/pixmaps/pinentry.png

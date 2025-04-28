@@ -180,6 +180,7 @@ Grab the keyboard only when the window is focused.  Use this option if
 you are debugging software using the @pinentry{}; otherwise you may
 not be able to to access your X session anymore (unless you have other
 means to connect to the machine to kill the @pinentry{}).
+Note that this feature only supported in flavors of Gtk+2 and Qt@tie{}4/5/6.
 
 @item --parent-wid @var{n}
 @opindex parent-wid
@@ -214,7 +215,7 @@ options using Assuan protocol options.
 @chapter Front Ends
 
 There are several different flavors of @pinentry{}.  Concretely, there
-are Gtk+2, Qt@tie{}4/5, TQt, EFL, FLTK, Gnome@tie{}3, Emacs, curses and
+are Gtk+2, Qt@tie{}4/5/6, TQt, EFL, FLTK, Gnome@tie{}3, Emacs, curses and
 tty variants.  These different implementations provide higher levels
 of integration with a specific environment.  For instance, the
 Gnome@tie{}3 @pinentry{} uses Gnome@tie{}3 widgets to display the
@@ -440,7 +441,7 @@ All strings have to be percent escaped.
 
 @item Enable an action for generating a passphrase
 Adds an action for generating a random passphrase to the GETPIN window.
-The action is only available when asking for a new passphrase, i.e. if
+The action is only available when asking for a new passphrase, i.e., if
 SETREPEAT has been called.
 @example
   C: SETGENPIN Suggest
@@ -793,9 +794,8 @@ If @code{may_cache_password} and @code{keyinfo} are set and the user
 consents, then the @pinentry{} may cache the password with an external
 manager.  Note: getting the user's consent is essential, because
 password managers often provide a different level of security.  If the
-above condition is true and @code{tried_password_cache} is false, then
-a check box with the specified string should be displayed.  The check
-box must default to off.
+above condition is true, then a check box with the specified string should
+be displayed.  The check box must default to off.
 
 @item @code{default-cf-visi}
 The string to show with a question if you want to confirm that
